@@ -1,0 +1,60 @@
+import { useRef, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, Sparkles, Gamepad2, Star, Tv2, Layers } from 'lucide-react'
+import { GAMES, type Game, type GameGroup } from '../data/casino'
+
+export const TAB_ICONS = { originals: Gamepad2, slots: Star, live: Tv2, shows: Layers, new: Sparkles }
+
+export const GameTile = ({ game }: { game: Game }) => {
+  const titleInArt = !game.img || game.group === 'originals'
+  return (
+  <Link to={`/casino/games/${game.id}`} className="cg-tile">
+    <div
+      className={`cg-art${game.img && titleInArt ? ' cg-art--shade' : ''}`}
+      style={
+        game.img
+          ? { backgroundImage: `url(${game.img})` }
+          : { background: `linear-gradient(160deg, hsl(${game.hue} 85% 58%), hsl(${(game.hue ?? 0) + 40} 80% 28%))` }
+      }
+    >
+      {titleInArt && <span className="cg-art-title">{game.title}</span>}
+      <span className="cg-provider">{game.provider}</span>
+      <span className="cg-play">PLAY</span>
+    </div>
+    {!titleInArt && <p className="cg-name">{game.title}</p>}
+  </Link>
+  )
+}
+
+export const Row = ({
+  icon, label, onMore, children,
+}: { icon: ReactNode; label: string; onMore: () => void; children: ReactNode }) => {
+  const ref = useRef<HTMLDivElement>(null)
+  const scroll = (dir: number) =>
+    ref.current?.scrollBy({ left: dir * ref.current.clientWidth * 0.8, behavior: 'smooth' })
+
+  return (
+    <section className="cg-row">
+      <div className="cg-row-head">
+        <button className="cg-row-title" onClick={onMore}>
+          {icon}
+          {label}
+        </button>
+        <div className="cg-arrows">
+          <button className="cg-arrow" onClick={() => scroll(-1)} aria-label="Previous"><ChevronLeft size={18} /></button>
+          <button className="cg-arrow" onClick={() => scroll(1)} aria-label="Next"><ChevronRight size={18} /></button>
+        </div>
+      </div>
+      <div className="cg-scroller" ref={ref}>{children}</div>
+    </section>
+  )
+}
+
+export const GameRow = ({ group, label, onMore }: { group: GameGroup; label: string; onMore: () => void }) => {
+  const Icon = TAB_ICONS[group]
+  return (
+    <Row icon={<Icon size={18} strokeWidth={1.75} />} label={label} onMore={onMore}>
+      {GAMES.filter(g => g.group === group).map(g => <GameTile key={g.id} game={g} />)}
+    </Row>
+  )
+}

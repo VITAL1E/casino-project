@@ -1,0 +1,39 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# server reference wallet store + live-wins feed (runtime data, not source)
+server/data
+
+.env
+.env.*
+!.env.example
+
+*.tsbuildinfo
+
+# Playwright MCP browser-testing output (screenshots, console logs, snapshots)
+.playwright-mcp
+
+# Claude Code: personal/local permission settings, not shared project config
+.claude/settings.local.json

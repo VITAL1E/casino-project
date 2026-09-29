@@ -1,0 +1,21 @@
+{
+  "name": "casino-project",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w client",
+    "build": "npm run build -w client",
+    "lint": "npm run lint -w client",
+    "preview": "npm run preview -w client",
+    "server": "npm run server -w server",
+    "server:dev": "npm run server:dev -w server",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:generate": "npm run db:generate -w server",
+    "db:studio": "npm run db:studio -w server"
+  }
+}
