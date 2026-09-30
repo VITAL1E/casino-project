@@ -3,7 +3,6 @@ export const PLAYERS = 10
 export const R_START = 1300
 export const R_END = 200
 export const TICK = 1 / 60           // fixed step used everywhere the round is simulated
-export const MAX_TICKS = Math.ceil(ROUND_SEC / TICK) + 60   // hard cap, generous slack
 
 // small seeded PRNG: the server seeds each match, so bots and food layout are reproducible
 export const mulberry32 = (seed: number) => {
