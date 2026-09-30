@@ -1,0 +1,179 @@
+{
+  "site": {
+    "name": "STACK",
+    "url": "https://stack.example.com",
+    "tagline": "Crypto Casino & Sports Betting",
+    "description": "STACK is a no-bonus crypto casino and sportsbook: originals, slots, live casino and live odds, with server-verified results and transparent rules."
+  },
+  "routes": [
+    { "path": "/", "title": "STACK — Crypto Casino & Sports Betting", "description": "Play originals, slots and live casino, and bet on live sports odds. No fake bonuses, no hidden wagering requirements.", "priority": 1.0, "changefreq": "daily" },
+    { "path": "/casino", "title": "Online Casino Games — Originals, Slots & Live Casino | STACK", "description": "Browse the STACK casino lobby: arcade games like Slither Royale, classics like Dice and Crash, popular slots and live dealer tables.", "priority": 0.9, "changefreq": "daily" },
+    { "path": "/sports", "title": "Sports Betting — Live Odds on Soccer, Basketball & More | STACK", "description": "Live sportsbook odds for soccer, basketball, American football, tennis and esports, priced server-side and settled automatically.", "priority": 0.9, "changefreq": "hourly" },
+    { "path": "/promotions", "title": "Promotions — The Anti-Bonus Casino | STACK", "description": "No inflated welcome bonus and no wagering traps. See exactly what STACK offers instead.", "priority": 0.7, "changefreq": "weekly" },
+    { "path": "/vip", "title": "VIP Club — Tiers & Rewards | STACK", "description": "A preview of the STACK VIP club: tiers, what each level unlocks, and how levels are earned.", "priority": 0.6, "changefreq": "monthly" },
+    { "path": "/challenges", "title": "Challenges — Game Missions & Leaderboards | STACK", "description": "Preview of STACK challenges: game missions and weekly leaderboards.", "priority": 0.5, "changefreq": "weekly" },
+    { "path": "/blog", "title": "Blog — Casino Math, Fairness & Bankroll Guides | STACK", "description": "Plain-English guides on house edge, provably fair games and staying in control of your bankroll.", "priority": 0.8, "changefreq": "weekly" },
+    { "path": "/help", "title": "Help Center — FAQ | STACK", "description": "Answers about accounts, wallets, fairness, sports bets and responsible gambling on STACK.", "priority": 0.6, "changefreq": "monthly" }
+  ],
+  "faq": [
+    { "q": "Is STACK real-money?", "a": "No. STACK currently runs on play-money credits. New accounts receive 1,000 credits and the balance can be reset at any time." },
+    { "q": "How do I sign in?", "a": "With a username and password, Google or Discord, or by signing a message with a MetaMask (Ethereum) or Phantom (Solana) wallet." },
+    { "q": "Who decides game results?", "a": "The server. For games with a server-verified engine, the server picks the random seed, replays the round from your recorded inputs, and only its result is paid out. See the Fairness page for which games are covered." },
+    { "q": "How are sports bets priced and settled?", "a": "Odds come from a third-party odds feed cached on our server. A bet is always priced from the server's own line, never from what your browser last displayed, and settles automatically after the event finishes." },
+    { "q": "Why was my password rejected?", "a": "Passwords must be 8–72 characters and must not appear in known data breaches. We check this without sending your password anywhere: only a partial hash prefix is looked up." },
+    { "q": "How do I set limits or take a break?", "a": "See the Responsible Gambling page for tools and support organisations. If gambling stops being fun, stop and seek help." }
+  ],
+  "pages": {
+    "terms": {
+      "title": "Terms of Service | STACK",
+      "description": "The rules for using STACK.",
+      "h1": "Terms of Service",
+      "intro": "Draft summary for a play-money demo. This is not legal advice and must be reviewed by counsel before any real-money launch.",
+      "sections": [
+        { "h": "Eligibility", "p": ["You must be 18 or older, or the legal gambling age where you live, whichever is higher. You are responsible for checking that online gambling is lawful in your jurisdiction."] },
+        { "h": "Play-money credits", "p": ["Credits have no cash value and cannot be withdrawn, sold or transferred. We may reset balances or remove accounts that abuse the service."] },
+        { "h": "Fair use", "p": ["No bots, automation, multi-accounting, exploiting bugs, or attempts to interfere with the service. We may void bets and results affected by abuse or errors."] },
+        { "h": "Changes", "p": ["We may update these terms. Continued use after an update means you accept it."] }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy Policy | STACK",
+      "description": "What data STACK collects and why.",
+      "h1": "Privacy Policy",
+      "intro": "Draft summary for a play-money demo. Review with counsel before a real-money launch.",
+      "sections": [
+        { "h": "What we collect", "p": ["Username, optional email, a bcrypt hash of your password (never the password), linked Google/Discord/wallet identifiers, wallet transactions and bet history."] },
+        { "h": "How we use it", "p": ["To run your account, settle bets, prevent abuse and keep the service secure. We do not sell personal data."] },
+        { "h": "Cookies", "p": ["We use one httpOnly session cookie to keep you signed in. It is not readable by scripts."] },
+        { "h": "Password checks", "p": ["New passwords are checked against a public breach list using k-anonymity: only the first 5 characters of a SHA-1 hash leave our server."] }
+      ]
+    },
+    "aml": {
+      "title": "AML Policy | STACK",
+      "description": "STACK's anti-money-laundering position.",
+      "h1": "AML Policy",
+      "intro": "STACK currently uses play-money credits with no deposits or withdrawals, so no funds can be moved in or out.",
+      "sections": [
+        { "h": "Before real-money play", "p": ["Any real-money launch will require identity verification, transaction monitoring, sanctions screening and a licensed operator. Until then none of those flows exist."] }
+      ]
+    },
+    "responsible-gambling": {
+      "title": "Responsible Gambling — Tools & Support | STACK",
+      "description": "Tips to stay in control, warning signs, and where to get help with gambling.",
+      "h1": "Responsible Gambling",
+      "intro": "Gambling should be entertainment, never a way to make money or solve a problem.",
+      "sections": [
+        { "h": "Stay in control", "p": ["Decide a budget and a time limit before you play, and stop when you reach either. Never chase losses. Never gamble with money you need for essentials. Take regular breaks."] },
+        { "h": "Warning signs", "p": ["Spending more than planned, lying about gambling, borrowing to gamble, feeling anxious or irritable when not playing, or gambling to escape stress."] },
+        { "h": "Get help", "p": ["In the US call 1-800-GAMBLER. In the UK contact GamCare (0808 8020 133). Elsewhere, search for your national gambling helpline. Services are free and confidential."] },
+        { "h": "Under 18", "p": ["Gambling is for adults only. Parents can use device-level blocking software to restrict access to gambling sites."] }
+      ]
+    },
+    "fairness": {
+      "title": "Fairness — How STACK Verifies Results | STACK",
+      "description": "How results are decided on STACK, which games are server-verified, and what is still in progress.",
+      "h1": "Fairness",
+      "intro": "The client is never trusted. Here is exactly what is verified today.",
+      "sections": [
+        { "h": "Server-verified today: Slither Royale", "p": ["The server chooses the round's random seed, never the client. When the round ends, the server replays it from that seed and your recorded steering inputs using the same engine your browser previews with. Only the server's result is paid out."] },
+        { "h": "Sports bets", "p": ["A bet is priced from the server's own cached odds line at the moment you place it. Settlement is automatic, and a bet can only be paid out once."] },
+        { "h": "Wallet integrity", "p": ["Every balance change runs in a database transaction with a row lock and is written to an audit ledger."] },
+        { "h": "In progress", "p": ["The other games still run in the browser and are not yet server-verified. They will get the same seeded engine and server replay before any real-money launch."] }
+      ]
+    },
+    "about": {
+      "title": "About STACK | STACK",
+      "description": "What STACK is and what it stands for.",
+      "h1": "About STACK",
+      "intro": "STACK is a crypto casino and sportsbook built around one idea: honest odds and no bonus traps.",
+      "sections": [
+        { "h": "What we believe", "p": ["Rules should be short and results verifiable. No inflated welcome bonuses with wagering requirements designed to be unreachable."] },
+        { "h": "Where we are", "p": ["STACK is an in-development platform running on play-money credits while server-side verification is completed for every game."] }
+      ]
+    },
+    "contact": {
+      "title": "Contact Us | STACK",
+      "description": "How to reach STACK support.",
+      "h1": "Contact Us",
+      "intro": "The fastest way to reach us is the chat widget at the bottom right of any page.",
+      "sections": [
+        { "h": "Account or bet issues", "p": ["Include your username and, for a bet, the event and time you placed it."] }
+      ]
+    },
+    "affiliates": {
+      "title": "Affiliates | STACK",
+      "description": "STACK affiliate program status.",
+      "h1": "Affiliates",
+      "intro": "The affiliate program is not open yet.",
+      "sections": [
+        { "h": "Planned", "p": ["A referral program will launch alongside real-money play. Until then no commissions are paid."] }
+      ]
+    },
+    "careers": {
+      "title": "Careers | STACK",
+      "description": "Working at STACK.",
+      "h1": "Careers",
+      "intro": "There are no open roles right now.",
+      "sections": []
+    }
+  },
+  "promotions": [
+    { "title": "1,000 starter credits", "text": "Every new account gets 1,000 play credits. No code, no deposit, no wagering requirement." },
+    { "title": "Instant balance reset", "text": "Run out? Reset your balance to 1,000 from your wallet whenever you like." },
+    { "title": "Server-verified results", "text": "Slither Royale rounds are replayed on the server. See the Fairness page for the current coverage." },
+    { "title": "Server-priced sports bets", "text": "Odds are taken from our own cached line, never from what your browser sent." }
+  ],
+  "vip": [
+    { "tier": "Bronze", "req": "Sign up", "perk": "Full access to every game" },
+    { "tier": "Silver", "req": "Planned", "perk": "Profile badge" },
+    { "tier": "Gold", "req": "Planned", "perk": "Priority support" },
+    { "tier": "Platinum", "req": "Planned", "perk": "Custom limits tooling" }
+  ],
+  "challenges": [
+    { "title": "Win a Dice round at 4x or higher", "game": "Dice" },
+    { "title": "Cash out a Crash round above 3x", "game": "Crash" },
+    { "title": "Survive 30 seconds in Slither Royale", "game": "Slither Royale" },
+    { "title": "Place a winning sports bet", "game": "Sports" }
+  ],
+  "posts": [
+    {
+      "slug": "what-is-house-edge",
+      "title": "What Is House Edge? A Plain-English Guide",
+      "description": "House edge explained with real examples: how casinos make money, why long-run results follow the math, and how to compare games.",
+      "date": "2026-09-01",
+      "body": [
+        "House edge is the average percentage of each bet the casino keeps over the long run. If a game has a 1% edge, then on average you lose 1 credit for every 100 wagered.",
+        "It is an average, not a promise. Short sessions swing wildly; over thousands of bets results converge toward the math. That is why a game can pay out today and still be a losing game overall.",
+        "To compare games, look at the edge, not the theme. Single-zero (European) roulette has a 2.7% edge. Blackjack with good basic strategy can be under 1%. Slots typically sit between 2% and 8% depending on the game.",
+        "Bet size does not change the edge, but it changes how much you lose per hour. A 1% edge on 10 credits a spin costs less per hour than the same edge on 100 credits.",
+        "The practical takeaway: pick lower-edge games if you want your money to last, set a budget first, and treat any win as luck rather than skill."
+      ]
+    },
+    {
+      "slug": "provably-fair-explained",
+      "title": "Provably Fair Explained: Can You Verify a Casino Result?",
+      "description": "How seeds, hashes and server-side replays let you check that a casino game was not rigged, and where the limits of that promise are.",
+      "date": "2026-09-08",
+      "body": [
+        "Provably fair means the outcome of a round can be checked after the fact instead of taken on trust.",
+        "The classic approach commits to a secret server seed by publishing its hash before you play. After the round the seed is revealed and you can confirm it matches the hash and reproduces the outcome.",
+        "A second approach, used for Slither Royale on STACK, is server-side replay: the server picks the seed, records your inputs, and re-simulates the round with the same engine. The payout depends only on that replay, so a tampered browser cannot change the result.",
+        "Neither method proves the odds are generous. It proves the result was not changed after you bet. You still need to read the game's house edge.",
+        "Verify what you can, and remember that fair does not mean profitable."
+      ]
+    },
+    {
+      "slug": "bankroll-management-basics",
+      "title": "Bankroll Management Basics: Setting Limits That Work",
+      "description": "Simple, practical rules for setting a gambling budget, session limits and stop points so gambling stays entertainment.",
+      "date": "2026-09-15",
+      "body": [
+        "A bankroll is money set aside only for entertainment. If losing it would affect rent, food or bills, it is not a bankroll.",
+        "Set three limits before playing: a total budget, a maximum stake per bet (many people use 1–2% of the budget), and a time limit. Write them down.",
+        "Decide your stop points in advance. Walk away when you hit the loss limit, and consider stopping after a large win too, because the next bets are still negative on average.",
+        "Never chase losses. Raising stakes to win money back is the fastest way to turn a small loss into a large one.",
+        "If you notice you cannot stick to your limits, take a break and see the Responsible Gambling page for free support."
+      ]
+    }
+  ]
+}

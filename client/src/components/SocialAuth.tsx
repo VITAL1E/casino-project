@@ -1,6 +1,5 @@
 import { Ghost } from 'lucide-react'
 import { useAuth } from '../lib/auth/context'
-import { walletConnectors } from '../lib/wallets'
 
 const SocialAuth = () => {
   const { busyProvider, signInWithOAuth, signInWithWallet } = useAuth()
@@ -47,9 +46,6 @@ const SocialAuth = () => {
           ? <span className="auth-social-spinner" />
           : <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--brand-metamask)"><path d="M21 3l-8 6 1.5 3.5L21 3zM3 3l8 6-1.5 3.5L3 3zM6 15l2 5 4-1.5 4 1.5 2-5-3-2H9l-3 2z"/></svg>}
       </button>
-      {import.meta.env.DEV && Object.values(walletConnectors).every(c => !c.isAvailable()) && (
-        <span className="auth-social-hint">No wallet extension detected</span>
-      )}
     </div>
   )
 }

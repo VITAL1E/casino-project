@@ -11,6 +11,14 @@ import './App.css'
 const Casino = lazy(() => import('./pages/Casino'))
 const Sports = lazy(() => import('./pages/Sports'))
 const Game = lazy(() => import('./pages/Game'))
+const Promotions = lazy(() => import('./pages/Promotions'))
+const Vip = lazy(() => import('./pages/Vip'))
+const Challenges = lazy(() => import('./pages/Challenges'))
+const Help = lazy(() => import('./pages/Help'))
+const Info = lazy(() => import('./pages/Info'))
+const NotFound = lazy(() => import('./pages/NotFound'))
+const Blog = lazy(() => import('./pages/Blog').then(m => ({ default: m.Blog })))
+const BlogPost = lazy(() => import('./pages/Blog').then(m => ({ default: m.BlogPost })))
 
 const RouteFallback = () => (
   <div className="route-fallback">
@@ -27,7 +35,14 @@ const App = () => (
           <Route path="/casino" element={<Casino />} />
           <Route path="/casino/games/:id" element={<Game />} />
           <Route path="/sports" element={<Sports />} />
-          <Route path="*" element={<Home />} />
+          <Route path="/promotions" element={<Promotions />} />
+          <Route path="/vip" element={<Vip />} />
+          <Route path="/challenges" element={<Challenges />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="/:slug" element={<Info />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </Layout>

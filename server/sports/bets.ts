@@ -3,6 +3,7 @@
 // same "server is authoritative" rule the Slither replay uses for payouts.
 import { eq, and, desc } from 'drizzle-orm'
 import { debit } from '../store'
+import { PublicError, parseStake } from '../security'
 import { findEvent, type OddsEvent } from './oddsApi'
 import { db, schema } from '../db'
 
@@ -30,15 +31,15 @@ export const placeBet = async (
   sportKey: string,
   eventId: string,
   selection: string,
-  stake: number,
+  rawStake: unknown,
 ): Promise<{ bet: SportsBet; balance: number }> => {
-  if (!(stake > 0) || !Number.isFinite(stake)) throw new Error('bad stake amount')
+  const stake = parseStake(rawStake)
 
   const event = await findEvent(sportKey, eventId)
-  if (!event) throw new Error('event not found or odds expired — refresh and try again')
+  if (!event) throw new PublicError('event not found or odds expired — refresh and try again')
   const odds = priceFor(event, selection)
-  if (odds === null) throw new Error('unknown selection for this event')
-  if (new Date(event.commenceTime).getTime() <= Date.now()) throw new Error('this event has already started')
+  if (odds === null) throw new PublicError('unknown selection for this event')
+  if (new Date(event.commenceTime).getTime() <= Date.now()) throw new PublicError('this event has already started')
 
   const potentialPayout = Math.round(stake * odds * 100) / 100
   const balance = await debit(userId, stake, eventId)

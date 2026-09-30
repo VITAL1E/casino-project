@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               <label className="auth-field">
                 <span>Password</span>
                 <div className="auth-pw">
-                  <input name="password" type={showPw ? "text" : "password"} placeholder="Password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={6} />
+                  <input name="password" type={showPw ? "text" : "password"} placeholder="Password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={8} />
                   <button type="button" className="auth-pw-toggle" onClick={() => setShowPw(v => !v)} aria-label={showPw ? "Hide password" : "Show password"}>
                     {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>

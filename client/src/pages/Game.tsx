@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, Suspense, lazy } from 'react'
+import Seo from '../components/Seo'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Maximize, PictureInPicture2, RectangleHorizontal, Heart, ChevronDown, Play, Loader } from 'lucide-react'
 import { GAMES, GROUPS, getGame, gameMeta } from '../data/casino'
@@ -42,6 +43,7 @@ const GameView = ({ id }: { id: string }) => {
   if (!game) {
     return (
       <div className="gp-page">
+        <Seo title="Game not found | STACK" description="This game does not exist." noindex />
         <p className="cg-empty">Game not found. <Link to="/casino" className="gp-link">Back to casino</Link></p>
       </div>
     )
@@ -57,6 +59,7 @@ const GameView = ({ id }: { id: string }) => {
 
   return (
     <div className="gp-page">
+      <Seo title={`Play ${game.title} — ${groupLabel} | STACK`} description={`Play ${game.title} (${game.provider}) on STACK. ${groupLabel} with transparent rules and no bonus traps.`} />
       <div className="gp-crumbs">
         <Link to="/casino" className="gp-link">Casino</Link>
         <span>/</span>

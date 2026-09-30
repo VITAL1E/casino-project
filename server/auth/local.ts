@@ -4,24 +4,16 @@ import { setSessionCookie, clearSessionCookie } from './session'
 
 export const localAuthRoutes = {
   register: async (req: Request, res: Response) => {
-    try {
-      const { username, password, email } = req.body ?? {}
-      const user = await createLocalUser(username, password, email ?? null)
-      setSessionCookie(res, user)
-      res.json({ user })
-    } catch (e) {
-      res.status(400).json({ error: (e as Error).message })
-    }
+    const { username, password, email } = req.body ?? {}
+    const user = await createLocalUser(username, password, email ?? null)
+    setSessionCookie(res, user)
+    res.json({ user })
   },
   login: async (req: Request, res: Response) => {
-    try {
-      const { username, password } = req.body ?? {}
-      const user = await verifyLocalLogin(username, password)
-      setSessionCookie(res, user)
-      res.json({ user })
-    } catch (e) {
-      res.status(401).json({ error: (e as Error).message })
-    }
+    const { username, password } = req.body ?? {}
+    const user = await verifyLocalLogin(username, password)
+    setSessionCookie(res, user)
+    res.json({ user })
   },
   logout: (_req: Request, res: Response) => {
     clearSessionCookie(res)

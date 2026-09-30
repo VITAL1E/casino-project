@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import Seo from '../components/Seo'
+import { seoFor } from '../lib/seoFor'
 import { useSearchParams } from 'react-router-dom'
 import {
   Home, Radio, Star, Search, Trophy, Volleyball, Swords, Target, Crosshair, Snowflake, CircleDot,
@@ -82,19 +84,20 @@ const Sports = () => {
       .then(list => { if (!cancelled) setOddsResult({ sport, events: list, error: '' }) })
       .catch(e => {
         if (cancelled) return
-        setOddsResult({
-          sport, events: [],
-          error: e instanceof SportsApiError && e.message === 'unknown sport'
-            ? "Odds for this sport aren't hooked up yet."
-            : 'Could not load odds. Try again shortly.',
-        })
+        // No provider for this sport (e.g. esports, table tennis) reads the
+        // same as zero events right now — no need to explain why.
+        const unmapped = e instanceof SportsApiError && e.message === 'unknown sport'
+        setOddsResult({ sport, events: [], error: unmapped ? '' : 'Could not load odds. Try again shortly.' })
       })
     return () => { cancelled = true }
   }, [sport])
 
+  // Stale-while-revalidate: the previous sport's events stay on screen (dimmed) until the new
+  // ones arrive, so switching sports cross-fades instead of blanking the whole page.
   const loading = oddsResult?.sport !== sport
-  const events = oddsResult?.sport === sport ? oddsResult.events : []
-  const loadError = oddsResult?.sport === sport ? oddsResult.error : ''
+  const events = oddsResult?.events ?? []
+  const loadError = !loading && oddsResult ? oddsResult.error : ''
+  const dim = loading ? ' sp-dim' : ''
 
   useEffect(() => {
     if (!user) return
@@ -145,6 +148,7 @@ const Sports = () => {
 
   return (
     <div className="sp-page">
+      <Seo {...seoFor('/sports')} />
       <div className="sp-strip">
         <button className="sp-strip-btn" title="Home"><Home size={20} strokeWidth={1.5} /></button>
         <button className="sp-strip-btn" title="Live"><Radio size={20} strokeWidth={1.5} /></button>
@@ -179,16 +183,16 @@ const Sports = () => {
           ))}
         </div>
 
-        {loading && <p className="cg-empty">Loading odds…</p>}
-        {!loading && loadError && <p className="cg-empty">{loadError}</p>}
+        {!oddsResult && <p className="cg-empty">Loading odds…</p>}
+        {loadError && <p className="cg-empty">{loadError}</p>}
 
-        {!loading && !loadError && (
+        {oddsResult && !loadError && (
           <>
-            <div className="sp-featured">
+            <div key={`f-${oddsResult.sport}`} className={`sp-featured sp-fade${dim}`}>
               {featured.map(e => (
                 <div key={e.id} className="sp-feat">
                   <div className="sp-feat-top">
-                    <span>{sport}</span>
+                    <span>{oddsResult.sport}</span>
                     <span>{formatMatchTime(e.commenceTime)}</span>
                   </div>
                   <div className="sp-feat-teams">
@@ -216,11 +220,11 @@ const Sports = () => {
               })}
             </div>
 
-            <div className="sp-matches">
+            <div key={`m-${oddsResult.sport}`} className={`sp-matches sp-fade${dim}`}>
               {list.length === 0 && <p className="cg-empty">No events right now.</p>}
               {list.map(e => (
                 <div key={e.id} className="sp-match">
-                  <p className="sp-match-league">{sport}</p>
+                  <p className="sp-match-league">{oddsResult.sport}</p>
                   <p className="sp-match-time">{formatMatchTime(e.commenceTime)}</p>
                   <p className="sp-team">{e.homeTeam}</p>
                   <p className="sp-team">{e.awayTeam}</p>

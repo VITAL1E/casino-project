@@ -36,17 +36,25 @@ declare global {
   }
 }
 
+const userFromToken = (token: unknown): SessionUser | undefined => {
+  if (typeof token !== 'string') return undefined
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { sub: string; username: string }
+    return { id: payload.sub, username: payload.username }
+  } catch {
+    return undefined   // expired/invalid token — treat as logged out
+  }
+}
+
+// For non-Express entry points (WebSocket upgrade) that only have the raw Cookie header.
+export const userFromCookieHeader = (header: string | undefined): SessionUser | undefined => {
+  const match = header?.split(';').map(c => c.trim()).find(c => c.startsWith(`${SESSION_COOKIE}=`))
+  return userFromToken(match && decodeURIComponent(match.slice(SESSION_COOKIE.length + 1)))
+}
+
 // Reads the session cookie if present and attaches req.user — never rejects.
 export const attachUser = (req: Request, _res: Response, next: NextFunction) => {
-  const token = req.cookies?.[SESSION_COOKIE]
-  if (token) {
-    try {
-      const payload = jwt.verify(token, JWT_SECRET) as { sub: string; username: string }
-      req.user = { id: payload.sub, username: payload.username }
-    } catch {
-      // expired/invalid token — treat as logged out
-    }
-  }
+  req.user = userFromToken(req.cookies?.[SESSION_COOKIE])
   next()
 }
 

@@ -5,6 +5,7 @@ import { randomUUID, randomInt } from 'node:crypto'
 import { PLAYERS } from '../client/src/games/slither/engine'
 import { replayRound, type RecordedInput } from '../client/src/games/slither/replay'
 import { debit, credit, getBalance } from './store'
+import { PublicError, parseStake } from './security'
 
 type PendingRound = { userId: string; bet: number; seed: number; createdAt: number }
 
@@ -16,8 +17,8 @@ setInterval(() => {
   for (const [id, r] of pending) if (r.createdAt < cutoff) pending.delete(id)
 }, 60_000).unref()
 
-export const startRound = async (userId: string, bet: number) => {
-  if (!(bet > 0) || !Number.isFinite(bet)) throw new Error('bad bet amount')
+export const startRound = async (userId: string, rawBet: unknown) => {
+  const bet = parseStake(rawBet)
   const roundId = randomUUID()
   const balance = await debit(userId, bet, roundId)   // throws if insufficient — round never gets created
   const seed = randomInt(0, 2 ** 31)   // server-chosen: the client never influences the seed
@@ -29,11 +30,11 @@ const MAX_INPUTS = 60 * 65   // ~65s of ticks at 60Hz, comfortably above the 60s
 
 export const finishRound = async (userId: string, roundId: string, inputs: RecordedInput[]) => {
   const round = pending.get(roundId)
-  if (!round) throw new Error('unknown or already-settled round')
-  if (round.userId !== userId) throw new Error('round belongs to a different user')
+  if (!round) throw new PublicError('unknown or already-settled round')
+  if (round.userId !== userId) throw new PublicError('unknown or already-settled round')
   pending.delete(roundId)   // one-time use: this round can never be settled twice
 
-  if (!Array.isArray(inputs) || inputs.length > MAX_INPUTS) throw new Error('bad input log')
+  if (!Array.isArray(inputs) || inputs.length > MAX_INPUTS) throw new PublicError('bad input log')
   const cleanInputs = inputs.slice(0, MAX_INPUTS).map(i => ({
     want: Number.isFinite(i?.want) ? i.want : 0,
     boost: !!i?.boost,

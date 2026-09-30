@@ -5,15 +5,24 @@
 const API_BASE = process.env.ODDS_API_BASE ?? 'https://api.the-odds-api.com/v4'
 const API_KEY = process.env.ODDS_API_KEY
 
-// The tabs our UI shows map to one real league each — the free tier
-// doesn't reliably cover every sport (esports, table tennis) year-round,
-// so those simply render an empty "no events" state rather than fake data.
+// The tabs our UI shows map to one real league/tournament each. Two tabs
+// stay unmapped on purpose: The Odds API has no market at all for esports
+// or table tennis (checked against /v4/sports), so there's no key to put
+// here — that's different from "no events right now" and the sports
+// route below tells those two apart.
+//
+// tennis's key isn't a stable league like the others — the API only ever
+// lists whichever ATP/WTA tournament is currently active, so this needs
+// updating by hand when that tournament ends (see GET /v4/sports for the
+// current list). Everything else here is a year-round key.
 export const SPORT_KEYS: Record<string, string> = {
   soccer: 'soccer_epl',
   basketball: 'basketball_nba',
   'american-football': 'americanfootball_nfl',
   'ice-hockey': 'icehockey_nhl',
   baseball: 'baseball_mlb',
+  boxing: 'boxing_boxing',
+  tennis: 'tennis_atp_china_open',
 }
 
 export type OddsOutcome = { name: string; price: number }

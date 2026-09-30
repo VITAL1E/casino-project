@@ -6,7 +6,7 @@ import { oauthRoutes } from './oauth'
 import { walletRoutes } from './wallet'
 import { rateLimit } from '../security'
 
-export { attachUser, requireAuth } from './session'
+export { attachUser, requireAuth, userFromCookieHeader } from './session'
 export type { SessionUser } from './session'
 
 // Every credential-checking endpoint gets a per-IP rate limit — defense in

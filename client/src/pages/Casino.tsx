@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import Seo from '../components/Seo'
+import { seoFor } from '../lib/seoFor'
 import { useSearchParams } from 'react-router-dom'
 import { Search, Trophy, Gift, LayoutGrid } from 'lucide-react'
 import { GAMES, GROUPS, type GameGroup } from '../data/casino'
@@ -13,7 +15,8 @@ const PROMOS = [
 const Casino = () => {
   const [params, setParams] = useSearchParams()
   const [query, setQuery] = useState('')
-  const group = (params.get('group') ?? 'lobby') as GameGroup | 'lobby'
+  const raw = params.get('group')
+  const group: GameGroup | 'lobby' = GROUPS.find(g => g.key === raw)?.key ?? 'lobby'
 
   const setGroup = (g: string) => setParams(g === 'lobby' ? {} : { group: g })
   const q = query.trim().toLowerCase()
@@ -21,6 +24,7 @@ const Casino = () => {
 
   return (
     <div className="cg-page">
+      <Seo {...seoFor('/casino')} />
       <div className="cg-promos">
         {PROMOS.map(({ tag, title, text, cta, icon: Icon, hue }) => (
           <div key={title} className="cg-promo">

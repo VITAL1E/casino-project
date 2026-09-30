@@ -18,7 +18,8 @@ const MAIN_NAV: Item[] = [
 ]
 
 const CASINO_NAV: Item[] = [
-  { icon: Gamepad2,   label: 'Originals',    to: '/casino?group=originals' },
+  { icon: Gamepad2,   label: 'Arcades',      to: '/casino?group=arcade' },
+  { icon: Dices,      label: 'Classics',     to: '/casino?group=classics' },
   { icon: Star,       label: 'Slots',        to: '/casino?group=slots' },
   { icon: Tv2,        label: 'Live Casino',  to: '/casino?group=live' },
   { icon: LayoutGrid, label: 'All Games',    to: '/casino' },
@@ -34,13 +35,13 @@ const SPORT_NAV: Item[] = [
 ]
 
 const REWARDS_NAV: Item[] = [
-  { icon: Gift,  label: 'Promotions' },
-  { icon: Flame, label: 'Challenges' },
-  { icon: Crown, label: 'VIP' },
+  { icon: Gift,  label: 'Promotions', to: '/promotions' },
+  { icon: Flame, label: 'Challenges', to: '/challenges' },
+  { icon: Crown, label: 'VIP', to: '/vip' },
 ]
 
 const MORE_NAV: Item[] = [
-  { icon: BookOpen, label: 'Blog' },
+  { icon: BookOpen, label: 'Blog', to: '/blog' },
 ]
 
 const Group = ({ items, title, current }: { items: Item[]; title?: string; current: string }) => (
@@ -68,7 +69,7 @@ const isMobile = () => window.matchMedia('(max-width: 768px)').matches
 
 const LayoutInner = ({ children }: { children: ReactNode }) => {
   const { openAuth } = useAuth()
-  const [open, setOpen] = useState(() => !isMobile())
+  const [open, setOpen] = useState(false)   // sidebar starts collapsed on every screen size
   const { pathname, search } = useLocation()
   const navigate = useNavigate()
   const sport = pathname.startsWith('/sports')

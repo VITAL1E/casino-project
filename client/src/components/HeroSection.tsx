@@ -1,4 +1,5 @@
 import SocialAuth from "./SocialAuth"
+import SadWallet from "./SadWallet"
 import { useAuth } from "../lib/auth/context"
 
 const HeroSection = () => {
@@ -8,7 +9,7 @@ const HeroSection = () => {
     <div className="hero-content">
       <p className="hero-subtitle">// welcome to the degen den</p>
       <h1 className="hero-title">
-        HOUSE OF THE WORLD'S<br />GREATEST DEGENS.
+        HOUSE OF WORLD'S<br />GREATEST DEGENS
       </h1>
       <p className="hero-tagline">High stakes, higher spirits. Pull up a chair.</p>
       <div className="hero-ctas">
@@ -24,6 +25,7 @@ const HeroSection = () => {
         <SocialAuth />
 
       </div>
+      <SadWallet />
     </div>
 
     <div className="hero-right">

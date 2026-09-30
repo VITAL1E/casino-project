@@ -1,39 +1,41 @@
-export type GameGroup = 'originals' | 'slots' | 'live' | 'shows' | 'new'
+export type GameGroup = 'arcade' | 'classics' | 'slots' | 'live' | 'shows' | 'new'
 
 export type Game = {
   id: string
   title: string
   provider: string
   group: GameGroup
+  mode?: 'multi' | 'single'   // arcade games only
   hue?: number
   img?: string
 }
 
 const u = (id: string) => `https://images.unsplash.com/${id}?w=400&q=80`
 
-// Drop art in src/assets/<group>/<game-title-slug>.(jpg|png|webp), e.g. slots/sweet-bonanza.jpg — group = originals, slots, live, shows or new
+// Drop art in src/assets/<folder>/<game-title-slug>.(jpg|png|webp), e.g. slots/sweet-bonanza.jpg — folder = originals (arcade + classics), slots, live, shows or new
+const ART_DIR: Record<GameGroup, string> = { arcade: 'originals', classics: 'originals', slots: 'slots', live: 'live', shows: 'shows', new: 'new' }
 const gameArt = import.meta.glob<string>("../assets/{originals,slots,live,shows,new}/*.{jpg,jpeg,png,webp}", { eager: true, import: "default" })
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-const artFor = (g: Game) => Object.entries(gameArt).find(([p]) => { const [file, folder] = p.split("/").reverse(); return folder === g.group && file.replace(/\.\w+$/, "") === slug(g.title) })?.[1]
+const artFor = (g: Game) => Object.entries(gameArt).find(([p]) => { const [file, folder] = p.split("/").reverse(); return folder === ART_DIR[g.group] && file.replace(/\.\w+$/, "") === slug(g.title) })?.[1]
 
 const RAW_GAMES: Game[] = [
-  { id: 'o12', title: 'Chicken Royale', provider: 'Originals', group: 'originals', hue: 45 },
-  { id: 'o10', title: 'Slither Royale', provider: 'Originals', group: 'originals', hue: 140 },
-  { id: 'o11', title: 'Agar Royale', provider: 'Originals', group: 'originals', hue: 20 },
-  { id: 'o13', title: 'Paper Royale', provider: 'Originals', group: 'originals', hue: 90 },
-  { id: 'o14', title: 'Hole Royale', provider: 'Originals', group: 'originals', hue: 260 },
-  { id: 'o17', title: 'Storm Royale', provider: 'Originals', group: 'originals', hue: 275 },
-  { id: 'o15', title: 'Road Cross', provider: 'Originals', group: 'originals', hue: 110 },
-  { id: 'o16', title: 'Flappy Cash', provider: 'Originals', group: 'originals', hue: 55 },
-  { id: 'o1', title: 'Dice',      provider: 'Originals', group: 'originals', hue: 215 },
-  { id: 'o2', title: 'Mines',     provider: 'Originals', group: 'originals', hue: 160 },
-  { id: 'o3', title: 'Plinko',    provider: 'Originals', group: 'originals', hue: 30 },
-  { id: 'o4', title: 'Crash',     provider: 'Originals', group: 'originals', hue: 350 },
-  { id: 'o5', title: 'Keno',      provider: 'Originals', group: 'originals', hue: 270 },
-  { id: 'o6', title: 'Limbo',     provider: 'Originals', group: 'originals', hue: 190 },
-  { id: 'o7', title: 'HiLo',      provider: 'Originals', group: 'originals', hue: 300 },
-  { id: 'o8', title: 'Blackjack', provider: 'Originals', group: 'originals', hue: 240 },
-  { id: 'o9', title: 'Roulette',  provider: 'Originals', group: 'originals', hue: 120 },
+  { id: 'o12', title: 'Chicken Royale', provider: 'Originals', group: 'arcade', mode: 'single', hue: 45 },
+  { id: 'o10', title: 'Slither Royale', provider: 'Originals', group: 'arcade', mode: 'multi', hue: 140 },
+  { id: 'o11', title: 'Agar Royale', provider: 'Originals', group: 'arcade', mode: 'single', hue: 20 },
+  { id: 'o13', title: 'Paper Royale', provider: 'Originals', group: 'arcade', mode: 'single', hue: 90 },
+  { id: 'o14', title: 'Hole Royale', provider: 'Originals', group: 'arcade', mode: 'single', hue: 260 },
+  { id: 'o17', title: 'Storm Royale', provider: 'Originals', group: 'arcade', mode: 'single', hue: 275 },
+  { id: 'o15', title: 'Road Cross', provider: 'Originals', group: 'arcade', mode: 'single', hue: 110 },
+  { id: 'o16', title: 'Flappy Cash', provider: 'Originals', group: 'arcade', mode: 'single', hue: 55 },
+  { id: 'o1', title: 'Dice',      provider: 'Originals', group: 'classics', hue: 215 },
+  { id: 'o2', title: 'Mines',     provider: 'Originals', group: 'classics', hue: 160 },
+  { id: 'o3', title: 'Plinko',    provider: 'Originals', group: 'classics', hue: 30 },
+  { id: 'o4', title: 'Crash',     provider: 'Originals', group: 'classics', hue: 350 },
+  { id: 'o5', title: 'Keno',      provider: 'Originals', group: 'classics', hue: 270 },
+  { id: 'o6', title: 'Limbo',     provider: 'Originals', group: 'classics', hue: 190 },
+  { id: 'o7', title: 'HiLo',      provider: 'Originals', group: 'classics', hue: 300 },
+  { id: 'o8', title: 'Blackjack', provider: 'Originals', group: 'classics', hue: 240 },
+  { id: 'o9', title: 'Roulette',  provider: 'Originals', group: 'classics', hue: 120 },
 
   { id: 's1',  title: 'Wanted Dead or Wild', provider: 'Hacksaw',     group: 'slots', img: u('photo-1587837073080-448bc6a2329b') },
   { id: 's2',  title: 'Sweet Bonanza',       provider: 'Pragmatic',   group: 'slots', img: u('photo-1604881991720-f91add269bed') },
@@ -66,7 +68,8 @@ const RAW_GAMES: Game[] = [
 export const GAMES: Game[] = RAW_GAMES.map(g => ({ ...g, img: artFor(g) ?? g.img }))
 
 export const GROUPS: { key: GameGroup; label: string }[] = [
-  { key: 'originals', label: 'Originals' },
+  { key: 'arcade',   label: 'Arcades' },
+  { key: 'classics', label: 'Classics' },
   { key: 'slots',     label: 'Slots' },
   { key: 'live',      label: 'Live Casino' },
 ]

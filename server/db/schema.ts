@@ -23,7 +23,7 @@ export const ledger = pgTable('ledger', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),   // positive = credit, negative = debit
-  reason: text('reason').notNull(),   // 'signup_bonus' | 'reset' | 'bet' | 'payout'
+  reason: text('reason').notNull(),   // 'signup_bonus' | 'reset' | 'bet' | 'payout' | 'refund'
   roundId: text('round_id'),
   balanceAfter: numeric('balance_after', { precision: 14, scale: 2 }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

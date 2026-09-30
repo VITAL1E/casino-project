@@ -1,9 +1,12 @@
 import { useNavigate } from 'react-router-dom'
+import Seo from '../components/Seo'
+import { seoFor } from '../lib/seoFor'
 import { Radio } from 'lucide-react'
 import HeroSection from '../components/HeroSection'
 import LiveWinsTable from '../components/LiveWinsTable'
 import { GameRow, Row } from '../components/GameRow'
 import { GROUPS } from '../data/casino'
+import site from '../data/site.json'
 import { SPORTS, sportArt, hasSportFile } from '../data/sports'
 
 const NO_BONUS_BANNER = (
@@ -22,6 +25,7 @@ const Home = () => {
 
   return (
     <div className="home-page">
+      <Seo {...seoFor('/')} jsonLd={{ '@context': 'https://schema.org', '@type': 'WebSite', name: site.site.name, url: site.site.url }} />
       <HeroSection />
 
       <LiveWinsTable />

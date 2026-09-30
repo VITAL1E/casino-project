@@ -1,12 +1,13 @@
 import { useRef, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Sparkles, Gamepad2, Star, Tv2, Layers } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Sparkles, Gamepad2, Dices, Star, Tv2, Layers } from 'lucide-react'
 import { GAMES, type Game, type GameGroup } from '../data/casino'
 
-export const TAB_ICONS = { originals: Gamepad2, slots: Star, live: Tv2, shows: Layers, new: Sparkles }
+export const TAB_ICONS = { arcade: Gamepad2, classics: Dices, slots: Star, live: Tv2, shows: Layers, new: Sparkles }
 
 export const GameTile = ({ game }: { game: Game }) => {
-  const titleInArt = !game.img || game.group === 'originals'
+  const titleInArt = !game.img || game.group === 'arcade' || game.group === 'classics'
+  const longWord = game.title.split(' ').some(w => w.length > 7)   // one long word cannot wrap, so it gets a smaller size
   return (
   <Link to={`/casino/games/${game.id}`} className="cg-tile">
     <div
@@ -17,8 +18,10 @@ export const GameTile = ({ game }: { game: Game }) => {
           : { background: `linear-gradient(160deg, hsl(${game.hue} 85% 58%), hsl(${(game.hue ?? 0) + 40} 80% 28%))` }
       }
     >
-      {titleInArt && <span className="cg-art-title">{game.title}</span>}
-      <span className="cg-provider">{game.provider}</span>
+      {titleInArt && <span className={`cg-art-title${longWord ? ' cg-art-title--long' : ''}`}>{game.title}</span>}
+      {game.mode
+        ? <span className={`cg-mode cg-mode--${game.mode}`}>{game.mode === 'multi' ? 'Multiplayer' : 'Single-player'}</span>
+        : <span className="cg-provider">{game.provider}</span>}
       <span className="cg-play">PLAY</span>
     </div>
     {!titleInArt && <p className="cg-name">{game.title}</p>}

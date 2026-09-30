@@ -5,6 +5,7 @@
 import bcrypt from 'bcryptjs'
 import { eq, and } from 'drizzle-orm'
 import { db, schema } from '../db'
+import { PublicError, isPwnedPassword } from '../security'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 export type PublicUser = { id: string; username: string }
@@ -35,9 +36,12 @@ const uniqueUsername = async (base: string): Promise<string> => {
 }
 
 export const createLocalUser = async (username: string, password: string, email: string | null): Promise<PublicUser> => {
-  username = (username ?? '').trim()
-  if (username.length < 3 || username.length > 32) throw new Error('username must be 3-32 characters')
-  if (!password || password.length < 6) throw new Error('password must be at least 6 characters')
+  if (typeof username !== 'string' || typeof password !== 'string') throw new PublicError('invalid input')
+  if (email !== null && typeof email !== 'string') throw new PublicError('invalid input')
+  username = username.trim()
+  if (username.length < 3 || username.length > 32) throw new PublicError('username must be 3-32 characters')
+  if (password.length < 8 || password.length > 72) throw new PublicError('password must be 8-72 characters')
+  if (await isPwnedPassword(password)) throw new PublicError('this password appeared in a data breach, choose another')
 
   const hash = await bcrypt.hash(password, 12)
   try {
@@ -49,21 +53,22 @@ export const createLocalUser = async (username: string, password: string, email:
       return { id: row.id, username }
     })
   } catch (e) {
-    if ((e as { code?: string }).code === '23505') throw new Error('username or email already taken')
+    if ((e as { code?: string }).code === '23505') throw new PublicError('username or email already taken')
     throw e
   }
 }
 
-export const verifyLocalLogin = async (username: string, password: string): Promise<PublicUser> => {
+export const verifyLocalLogin = async (username: unknown, password: unknown): Promise<PublicUser> => {
+  if (typeof username !== 'string' || typeof password !== 'string' || password.length > 72) throw new PublicError('invalid username or password', 401)
   const [row] = await db.select({ id: schema.users.id, username: schema.users.username, passwordHash: schema.users.passwordHash })
-    .from(schema.users).where(eq(schema.users.username, (username ?? '').trim()))
+    .from(schema.users).where(eq(schema.users.username, username.trim()))
 
   // Compare against a dummy hash when the user doesn't exist, or exists but
   // has no password (an OAuth/wallet-only account), so the response time
   // and error never leak which case it was.
   const hash = row?.passwordHash ?? '$2a$12$invalidsaltinvalidsaltinvOe'
   const ok = await bcrypt.compare(password, hash)
-  if (!row || !row.passwordHash || !ok) throw new Error('invalid username or password')
+  if (!row || !row.passwordHash || !ok) throw new PublicError('invalid username or password', 401)
   return { id: row.id, username: row.username }
 }
 

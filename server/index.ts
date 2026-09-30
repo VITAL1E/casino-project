@@ -1,11 +1,7 @@
-// Reference verification server for Slither Royale.
-//
-// The server picks the round's random seed (never the client), the server
-// owns the wallet balance, and when a round ends the server independently
-// re-simulates it from the seed plus the human player's recorded steering
-// inputs (see src/games/slither/replay.ts) to work out who actually won.
-// The client's own on-screen game is just a preview — only the server's
-// replay result is ever paid out.
+// Game server. Slither Royale (server/slither/) is server-authoritative
+// multiplayer over a WebSocket: matchmaking, the 60Hz simulation, results and
+// payouts all live here; the browser only sends steering inputs and renders
+// the snapshots it receives. The server also owns the wallet balance.
 //
 // Auth: real accounts (server/auth/) — password, Google/Discord OAuth, or
 // MetaMask/Phantom wallet sign-in, all converging on the same JWT-in-an-
@@ -31,8 +27,8 @@
 //
 // STILL MISSING before this can touch real money:
 //   - TLS in front of this (rate limiting/headers are not a substitute)
-//   - the same treatment (seeded engine + server replay) for every other
-//     Originals game — only Slither Royale has been done so far
+//   - the same server-authoritative treatment for every other Originals
+//     game — only Slither Royale has been done so far
 //   - a real sportsbook license/data feed — see the ODDS_API_KEY comment
 //     in server/.env.example for why this is play-money only for now
 import 'dotenv/config'
@@ -40,12 +36,13 @@ import express from 'express'
 import cookieParser from 'cookie-parser'
 import { migrate } from './db'
 import { attachUser, requireAuth, registerAuthRoutes } from './auth'
-import { securityHeaders } from './security'
-import { startRound, finishRound } from './rounds'
+import { securityHeaders, rateLimit, errorHandler } from './security'
 import { getBalance, resetBalance } from './store'
 import { registerSportsRoutes, startSettlementLoop } from './sports'
-import { streamWins, broadcastWin, startDemoFeed } from './liveWins'
-import { randomUUID } from 'node:crypto'
+import { streamWins, startDemoFeed } from './liveWins'
+import { attachSlither } from './slither'
+
+const resetLimiter = rateLimit(60_000, 5)
 
 const app = express()
 app.use(securityHeaders)
@@ -67,45 +64,22 @@ registerAuthRoutes(app)
 registerSportsRoutes(app)
 
 app.get('/api/wallet', requireAuth, async (req, res) => {
-  try { res.json({ balance: await getBalance(req.user!.id) }) }
-  catch (e) { res.status(400).json({ error: (e as Error).message }) }
+  res.json({ balance: await getBalance(req.user!.id) })
 })
 
-app.post('/api/wallet/reset', requireAuth, async (req, res) => {
-  try { res.json({ balance: await resetBalance(req.user!.id) }) }
-  catch (e) { res.status(400).json({ error: (e as Error).message }) }
-})
-
-app.post('/api/slither/start', requireAuth, async (req, res) => {
-  try {
-    const bet = Number(req.body?.bet)
-    const round = await startRound(req.user!.id, bet)
-    res.json(round)
-  } catch (e) { res.status(400).json({ error: (e as Error).message }) }
-})
-
-app.post('/api/slither/finish', requireAuth, async (req, res) => {
-  try {
-    const { roundId, inputs } = req.body ?? {}
-    if (typeof roundId !== 'string') throw new Error('missing roundId')
-    const result = await finishRound(req.user!.id, roundId, inputs)
-    res.json(result)
-    if (result.payout > 0) {
-      broadcastWin({
-        id: randomUUID(), gameId: 'o10', label: 'Slither Royale',
-        username: req.user!.username, amount: result.payout, at: new Date().toISOString(),
-      })
-    }
-  } catch (e) { res.status(400).json({ error: (e as Error).message }) }
+app.post('/api/wallet/reset', requireAuth, resetLimiter, async (req, res) => {
+  res.json({ balance: await resetBalance(req.user!.id) })
 })
 
 app.get('/api/events/wins', streamWins)
+app.use(errorHandler)
 
 const PORT = Number(process.env.PORT) || 8787
 
 migrate()
   .then(() => {
-    app.listen(PORT, () => console.log(`slither verification server listening on :${PORT}`))
+    const server = app.listen(PORT, () => console.log(`server listening on :${PORT}`))
+    attachSlither(server, ORIGIN)
     startSettlementLoop()
     startDemoFeed()
   })
