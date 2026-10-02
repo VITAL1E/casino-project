@@ -2571,13 +2571,13 @@ a.cg-tile { display: block; color: inherit; text-decoration: none; }
   font-size: 15px;
   font-weight: 800;
   color: var(--bg);
-  background: var(--yellow);
+  background: var(--accent);
   border: none;
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.13s;
 }
-.auth-submit:hover { background: var(--yellow-hover); }
+.auth-submit:hover { background: var(--accent-bright); }
 .auth-submit:disabled { opacity: 0.6; cursor: default; }
 
 .auth-error { margin: -4px 0 0; font-size: 12px; color: #f87171; text-align: center; }
