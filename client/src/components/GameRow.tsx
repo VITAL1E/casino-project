@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Sparkles, Gamepad2, Dices, Star, Tv2, Layers } from 'lucide-react'
 import { GAMES, type Game, type GameGroup } from '../data/casino'
@@ -33,6 +33,18 @@ export const Row = ({
   icon, label, onMore, children,
 }: { icon: ReactNode; label: string; onMore: () => void; children: ReactNode }) => {
   const ref = useRef<HTMLDivElement>(null)
+  const [edges, setEdges] = useState({ prev: false, next: true })   // which arrows can still scroll
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const update = () => setEdges({ prev: el.scrollLeft > 1, next: el.scrollLeft + el.clientWidth < el.scrollWidth - 1 })
+    el.addEventListener('scroll', update, { passive: true })
+    const ro = new ResizeObserver(update)   // also fires once on observe, which sets the initial state
+    ro.observe(el)
+    for (const child of el.children) ro.observe(child)
+    return () => { el.removeEventListener('scroll', update); ro.disconnect() }
+  }, [])
   const scroll = (dir: number) =>
     ref.current?.scrollBy({ left: dir * ref.current.clientWidth * 0.8, behavior: 'smooth' })
 
@@ -44,8 +56,8 @@ export const Row = ({
           {label}
         </button>
         <div className="cg-arrows">
-          <button className="cg-arrow" onClick={() => scroll(-1)} aria-label="Previous"><ChevronLeft size={18} /></button>
-          <button className="cg-arrow" onClick={() => scroll(1)} aria-label="Next"><ChevronRight size={18} /></button>
+          <button className="cg-arrow" onClick={() => scroll(-1)} disabled={!edges.prev} aria-label="Previous"><ChevronLeft size={18} /></button>
+          <button className="cg-arrow" onClick={() => scroll(1)} disabled={!edges.next} aria-label="Next"><ChevronRight size={18} /></button>
         </div>
       </div>
       <div className="cg-scroller" ref={ref}>{children}</div>

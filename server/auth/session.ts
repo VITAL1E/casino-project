@@ -49,7 +49,12 @@ const userFromToken = (token: unknown): SessionUser | undefined => {
 // For non-Express entry points (WebSocket upgrade) that only have the raw Cookie header.
 export const userFromCookieHeader = (header: string | undefined): SessionUser | undefined => {
   const match = header?.split(';').map(c => c.trim()).find(c => c.startsWith(`${SESSION_COOKIE}=`))
-  return userFromToken(match && decodeURIComponent(match.slice(SESSION_COOKIE.length + 1)))
+  if (!match) return undefined
+  try {
+    return userFromToken(decodeURIComponent(match.slice(SESSION_COOKIE.length + 1)))
+  } catch {
+    return undefined   // malformed percent-encoding — treat as logged out
+  }
 }
 
 // Reads the session cookie if present and attaches req.user — never rejects.

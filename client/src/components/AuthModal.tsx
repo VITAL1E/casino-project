@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import SocialAuth from './SocialAuth'
-import { register, login, logout, me, oauthStartUrl, type User, type OAuthProviderId, AuthApiError } from '../lib/authApi'
+import { register, login, logout, me, oauthStartUrl, type User, type OAuthProviderId, AuthApiError, guest } from '../lib/authApi'
 import { walletConnectors, WalletError } from '../lib/wallets'
 import { AuthContext, type AuthMode } from '../lib/auth/context'
 
@@ -23,6 +23,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [mode])
+
+  // TEMPORARY (testing): the server only allows this with GUEST_PLAY=1
+  const guestLogin = async () => {
+    try { setUser(await guest()); return true } catch { return false }
+  }
 
   const openAuth = (m: Mode) => { setError(null); setMode(m) }
   const signOut = () => { logout().catch(() => {}); setUser(null) }
@@ -70,7 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, openAuth, signOut, error, busyProvider, signInWithOAuth, signInWithWallet }}>
+    <AuthContext.Provider value={{ user, openAuth, signOut, error, busyProvider, signInWithOAuth, signInWithWallet, guestLogin }}>
       {children}
       {mode && (
         <div className="auth-overlay" onMouseDown={e => e.target === e.currentTarget && setMode(null)}>

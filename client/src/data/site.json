@@ -10,20 +10,32 @@
     { "path": "/casino", "title": "Online Casino Games — Originals, Slots & Live Casino | STACK", "description": "Browse the STACK casino lobby: arcade games like Slither Royale, classics like Dice and Crash, popular slots and live dealer tables.", "priority": 0.9, "changefreq": "daily" },
     { "path": "/sports", "title": "Sports Betting — Live Odds on Soccer, Basketball & More | STACK", "description": "Live sportsbook odds for soccer, basketball, American football, tennis and esports, priced server-side and settled automatically.", "priority": 0.9, "changefreq": "hourly" },
     { "path": "/promotions", "title": "Promotions — The Anti-Bonus Casino | STACK", "description": "No inflated welcome bonus and no wagering traps. See exactly what STACK offers instead.", "priority": 0.7, "changefreq": "weekly" },
-    { "path": "/vip", "title": "VIP Club — Tiers & Rewards | STACK", "description": "A preview of the STACK VIP club: tiers, what each level unlocks, and how levels are earned.", "priority": 0.6, "changefreq": "monthly" },
-    { "path": "/challenges", "title": "Challenges — Game Missions & Leaderboards | STACK", "description": "Preview of STACK challenges: game missions and weekly leaderboards.", "priority": 0.5, "changefreq": "weekly" },
+    { "path": "/vip", "title": "VIP Club — Tiers & Rewards | STACK", "description": "STACK VIP levels: your level rises with everything you wager, and every level pays a one-time bonus in play credits.", "priority": 0.6, "changefreq": "monthly" },
+    { "path": "/challenges", "title": "Daily Challenges — Play & Earn Credits | STACK", "description": "Complete daily challenges across the arcade, classics and sportsbook and claim play credits. They reset every day.", "priority": 0.5, "changefreq": "weekly" },
     { "path": "/blog", "title": "Blog — Casino Math, Fairness & Bankroll Guides | STACK", "description": "Plain-English guides on house edge, provably fair games and staying in control of your bankroll.", "priority": 0.8, "changefreq": "weekly" },
     { "path": "/help", "title": "Help Center — FAQ | STACK", "description": "Answers about accounts, wallets, fairness, sports bets and responsible gambling on STACK.", "priority": 0.6, "changefreq": "monthly" }
   ],
   "faq": [
     { "q": "Is STACK real-money?", "a": "No. STACK currently runs on play-money credits. New accounts receive 1,000 credits and the balance can be reset at any time." },
     { "q": "How do I sign in?", "a": "With a username and password, Google or Discord, or by signing a message with a MetaMask (Ethereum) or Phantom (Solana) wallet." },
-    { "q": "Who decides game results?", "a": "The server. For games with a server-verified engine, the server picks the random seed, replays the round from your recorded inputs, and only its result is paid out. See the Fairness page for which games are covered." },
+    { "q": "Who decides game results?", "a": "The server. In every arcade game the server runs the match, applies the inputs you send and decides the result and the payout. See the Fairness page for what is and is not covered." },
     { "q": "How are sports bets priced and settled?", "a": "Odds come from a third-party odds feed cached on our server. A bet is always priced from the server's own line, never from what your browser last displayed, and settles automatically after the event finishes." },
     { "q": "Why was my password rejected?", "a": "Passwords must be 8–72 characters and must not appear in known data breaches. We check this without sending your password anywhere: only a partial hash prefix is looked up." },
     { "q": "How do I set limits or take a break?", "a": "See the Responsible Gambling page for tools and support organisations. If gambling stops being fun, stop and seek help." }
   ],
   "pages": {
+    "cookies": {
+      "title": "Cookie Policy | STACK",
+      "description": "Which cookies and browser storage STACK uses and why.",
+      "h1": "Cookie Policy",
+      "intro": "STACK only uses what it needs to keep you signed in and to remember your choices. There are no advertising or analytics cookies.",
+      "sections": [
+        { "h": "Session cookie", "p": ["When you log in we set one httpOnly cookie, stack.session. It keeps you signed in, cannot be read by page scripts, and expires after 30 days or when you log out."] },
+        { "h": "Browser storage", "p": ["We store a flag in your browser (stack.cookies.accepted) so this banner does not reappear, plus small interface preferences. None of it is sent to advertisers."] },
+        { "h": "Third parties", "p": ["Fonts load from Google Fonts. If you sign in with Google, Discord, MetaMask or Phantom, that provider handles its own sign-in and may set its own cookies on its own pages."] },
+        { "h": "Your choices", "p": ["You can clear cookies and site data in your browser settings at any time. Without the session cookie you will be logged out and cannot place bets or use support chat."] }
+      ]
+    },
     "terms": {
       "title": "Terms of Service | STACK",
       "description": "The rules for using STACK.",
@@ -75,10 +87,10 @@
       "h1": "Fairness",
       "intro": "The client is never trusted. Here is exactly what is verified today.",
       "sections": [
-        { "h": "Server-verified today: Slither Royale", "p": ["The server chooses the round's random seed, never the client. When the round ends, the server replays it from that seed and your recorded steering inputs using the same engine your browser previews with. Only the server's result is paid out."] },
+        { "h": "Arcade games: server-authoritative", "p": ["Slither, Agar, Hole, Paper, Chicken and Storm Royale, Road Cross and Flappy Cash all run on the server. Your browser only sends inputs (steering, shooting, hopping, flapping) and draws the state the server sends back. The server simulates the match, picks the seeds, checks every input and pays the winner, so a modified browser cannot change an outcome."] },
         { "h": "Sports bets", "p": ["A bet is priced from the server's own cached odds line at the moment you place it. Settlement is automatic, and a bet can only be paid out once."] },
         { "h": "Wallet integrity", "p": ["Every balance change runs in a database transaction with a row lock and is written to an audit ledger."] },
-        { "h": "In progress", "p": ["The other games still run in the browser and are not yet server-verified. They will get the same seeded engine and server replay before any real-money launch."] }
+        { "h": "Limits", "p": ["A server cannot tell a person from a bot that plays through the normal controls, and it does not hide other players positions from your client, so aim assistants and map hacks are possible in shooters. The classic casino games (Dice and the rest) are not server-verified yet and will be before any real-money launch."] }
       ]
     },
     "about": {
@@ -122,18 +134,6 @@
     { "title": "Instant balance reset", "text": "Run out? Reset your balance to 1,000 from your wallet whenever you like." },
     { "title": "Server-verified results", "text": "Slither Royale rounds are replayed on the server. See the Fairness page for the current coverage." },
     { "title": "Server-priced sports bets", "text": "Odds are taken from our own cached line, never from what your browser sent." }
-  ],
-  "vip": [
-    { "tier": "Bronze", "req": "Sign up", "perk": "Full access to every game" },
-    { "tier": "Silver", "req": "Planned", "perk": "Profile badge" },
-    { "tier": "Gold", "req": "Planned", "perk": "Priority support" },
-    { "tier": "Platinum", "req": "Planned", "perk": "Custom limits tooling" }
-  ],
-  "challenges": [
-    { "title": "Win a Dice round at 4x or higher", "game": "Dice" },
-    { "title": "Cash out a Crash round above 3x", "game": "Crash" },
-    { "title": "Survive 30 seconds in Slither Royale", "game": "Slither Royale" },
-    { "title": "Place a winning sports bet", "game": "Sports" }
   ],
   "posts": [
     {

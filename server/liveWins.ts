@@ -7,6 +7,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Request, Response } from 'express'
+import { clientIp } from './security'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = path.join(HERE, 'data')
@@ -61,7 +62,13 @@ export const broadcastWin = (event: WinEvent) => {
 
 // GET /api/events/wins — public, read-only, no session needed (nothing
 // here is sensitive: a display name, a game, and an amount).
+const MAX_STREAMS_PER_IP = 5
+const streamsByIp = new Map<string, number>()
+
 export const streamWins = (req: Request, res: Response) => {
+  const ip = clientIp(req)
+  if ((streamsByIp.get(ip) ?? 0) >= MAX_STREAMS_PER_IP) return void res.status(429).end()
+  streamsByIp.set(ip, (streamsByIp.get(ip) ?? 0) + 1)
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
@@ -74,6 +81,8 @@ export const streamWins = (req: Request, res: Response) => {
   req.on('close', () => {
     clearInterval(keepAlive)
     clients.delete(res)
+    const n = (streamsByIp.get(ip) ?? 1) - 1
+    if (n <= 0) streamsByIp.delete(ip); else streamsByIp.set(ip, n)
   })
 }
 

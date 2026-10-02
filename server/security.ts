@@ -8,7 +8,26 @@ import type { Request, Response, NextFunction } from 'express'
 import { createHash } from 'node:crypto'
 
 // Fail securely: these are defaults every response gets, not opt-in.
+// The client's address. Behind a reverse proxy (TRUST_PROXY=1) it comes from the proxy's X-Forwarded-For header,
+// otherwise from the socket: never trust that header when the server is reachable directly.
+export const clientIp = (req: { headers: Record<string, string | string[] | undefined>; socket: { remoteAddress?: string } }): string => {
+  if (process.env.TRUST_PROXY === '1') {
+    const xff = req.headers['x-forwarded-for']
+    const first = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim()
+    if (first) return first
+  }
+  return req.socket.remoteAddress ?? 'unknown'
+}
+
+// Defence in depth next to the SameSite session cookie: every state-changing request has to be application/json.
+export const requireJson = (req: Request, res: Response, next: NextFunction) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next()
+  if (!req.is('application/json')) return void res.status(415).json({ error: 'expected application/json' })
+  next()
+}
+
 export const securityHeaders = (_req: Request, res: Response, next: NextFunction) => {
+  if (process.env.NODE_ENV === 'production') res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
   res.setHeader('X-Content-Type-Options', 'nosniff')
   res.setHeader('X-Frame-Options', 'DENY')
   res.setHeader('Referrer-Policy', 'same-origin')
@@ -36,7 +55,7 @@ export const MAX_STAKE = 10_000
 // Rejects non-numbers, NaN/Infinity, sub-cent and oversized amounts; returns
 // the amount rounded to cents so what's stored equals what's debited.
 export const parseStake = (v: unknown): number => {
-  if (typeof v !== 'number' && typeof v !== 'string') throw new PublicError('bad amount')
+  if (typeof v !== 'number' && !(typeof v === 'string' && /^\d{1,7}(\.\d{1,4})?$/.test(v))) throw new PublicError('bad amount')
   const n = Math.round(Number(v) * 100) / 100
   if (!Number.isFinite(n) || n < MIN_STAKE || n > MAX_STAKE) throw new PublicError('bad amount')
   return n
@@ -47,7 +66,8 @@ type Bucket = { count: number; resetAt: number }
 // In-memory sliding-ish window, per process. Good enough for a single
 // instance; a multi-instance deployment needs this backed by Redis instead
 // (noted here rather than silently pretending it scales).
-export const rateLimit = (windowMs: number, max: number) => {
+// `byUser`: count per logged-in user (falls back to the IP for guests) instead of per IP.
+export const rateLimit = (windowMs: number, max: number, byUser = false) => {
   const buckets = new Map<string, Bucket>()
 
   setInterval(() => {
@@ -56,7 +76,7 @@ export const rateLimit = (windowMs: number, max: number) => {
   }, windowMs).unref()
 
   return (req: Request, res: Response, next: NextFunction) => {
-    const key = req.ip ?? 'unknown'
+    const key = byUser && req.user ? `u:${req.user.id}` : clientIp(req)
     const now = Date.now()
     const bucket = buckets.get(key)
 

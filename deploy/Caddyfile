@@ -1,0 +1,41 @@
+# Static site + reverse proxy with automatic HTTPS (Let's Encrypt). {$DOMAIN} is the public host name.
+# For a local trial set DOMAIN=localhost (Caddy then issues a local certificate).
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# safe directives are enforced; the full policy is report-only until it has been checked against every page
+		Content-Security-Policy "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+		Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://images.unsplash.com; connect-src 'self' wss://{$DOMAIN}"
+		-Server
+	}
+
+	# API, live-wins stream and game sockets go to the server (Caddy handles the WebSocket upgrade by itself)
+	handle /api/events/* {
+		reverse_proxy server:8787 {
+			flush_interval -1
+		}
+	}
+	handle /api/* {
+		reverse_proxy server:8787
+	}
+	handle /ws/* {
+		reverse_proxy server:8787
+	}
+	handle /healthz {
+		reverse_proxy server:8787
+	}
+
+	# everything else is the prerendered site; unknown paths fall back to the SPA shell
+	handle {
+		root * /srv
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} {path}/index.html /index.html
+		file_server
+	}
+}

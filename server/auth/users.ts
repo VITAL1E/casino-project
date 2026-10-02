@@ -2,26 +2,20 @@
 // wallet). Each method ends up calling one of the functions below instead
 // of touching `users`/`wallets`/`ledger` directly, so "new user gets a
 // wallet + signup bonus" stays true in exactly one place.
+import { randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { eq, and } from 'drizzle-orm'
 import { db, schema } from '../db'
 import { PublicError, isPwnedPassword } from '../security'
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import { provision } from '../wallet'
 
 export type PublicUser = { id: string; username: string }
 
-const START_BALANCE = 1000
-
-// Accepts either `db` or a transaction handle — both implement the same
-// select/insert query builder, only the outer scope's begin/commit differs.
-type Queryable = NodePgDatabase<typeof schema>
-
-const provisionWallet = async (tx: Queryable, userId: string) => {
-  await tx.insert(schema.wallets).values({ userId, balance: String(START_BALANCE) })
-  await tx.insert(schema.ledger).values({
-    userId, amount: String(START_BALANCE), reason: 'signup_bonus', balanceAfter: String(START_BALANCE),
-  })
-}
+const BCRYPT_COST = 12
+// bcrypt ignores everything after 72 bytes (not characters), so longer passwords would silently lose their suffix.
+const tooLongForBcrypt = (password: string) => Buffer.byteLength(password, 'utf8') > 72
+// A real hash of the same cost, compared against when there is nothing to check, so login timing is identical either way.
+const DUMMY_HASH = bcrypt.hashSync(randomBytes(16).toString('hex'), BCRYPT_COST)
 
 // Appends a short random suffix until it finds a free username — used when
 // a provider hands us a display name that might already be taken.
@@ -40,16 +34,16 @@ export const createLocalUser = async (username: string, password: string, email:
   if (email !== null && typeof email !== 'string') throw new PublicError('invalid input')
   username = username.trim()
   if (username.length < 3 || username.length > 32) throw new PublicError('username must be 3-32 characters')
-  if (password.length < 8 || password.length > 72) throw new PublicError('password must be 8-72 characters')
+  if (password.length < 8 || tooLongForBcrypt(password)) throw new PublicError('password must be at least 8 characters and at most 72 bytes')
   if (await isPwnedPassword(password)) throw new PublicError('this password appeared in a data breach, choose another')
 
-  const hash = await bcrypt.hash(password, 12)
+  const hash = await bcrypt.hash(password, BCRYPT_COST)
   try {
     return await db.transaction(async tx => {
       const [row] = await tx.insert(schema.users)
         .values({ username, email: email || null, passwordHash: hash })
         .returning({ id: schema.users.id })
-      await provisionWallet(tx, row.id)
+      await provision(tx, row.id)
       return { id: row.id, username }
     })
   } catch (e) {
@@ -58,15 +52,25 @@ export const createLocalUser = async (username: string, password: string, email:
   }
 }
 
+// TEMPORARY (testing): an account with no password that is only reachable through the session cookie it is created with.
+export const createGuestUser = async (): Promise<PublicUser> => {
+  const username = `guest_${randomBytes(4).toString('hex')}`
+  return db.transaction(async tx => {
+    const [row] = await tx.insert(schema.users).values({ username }).returning({ id: schema.users.id })
+    await provision(tx, row.id)
+    return { id: row.id, username }
+  })
+}
+
 export const verifyLocalLogin = async (username: unknown, password: unknown): Promise<PublicUser> => {
-  if (typeof username !== 'string' || typeof password !== 'string' || password.length > 72) throw new PublicError('invalid username or password', 401)
+  if (typeof username !== 'string' || typeof password !== 'string' || tooLongForBcrypt(password)) throw new PublicError('invalid username or password', 401)
   const [row] = await db.select({ id: schema.users.id, username: schema.users.username, passwordHash: schema.users.passwordHash })
     .from(schema.users).where(eq(schema.users.username, username.trim()))
 
   // Compare against a dummy hash when the user doesn't exist, or exists but
   // has no password (an OAuth/wallet-only account), so the response time
   // and error never leak which case it was.
-  const hash = row?.passwordHash ?? '$2a$12$invalidsaltinvalidsaltinvOe'
+  const hash = row?.passwordHash ?? DUMMY_HASH
   const ok = await bcrypt.compare(password, hash)
   if (!row || !row.passwordHash || !ok) throw new PublicError('invalid username or password', 401)
   return { id: row.id, username: row.username }
@@ -91,7 +95,7 @@ export const findOrCreateOAuthUser = async (
       .values({ username, email: profile.email })
       .returning({ id: schema.users.id })
     await tx.insert(schema.oauthAccounts).values({ userId: row.id, provider, providerUserId })
-    await provisionWallet(tx, row.id)
+    await provision(tx, row.id)
     return { id: row.id, username }
   })
 }
@@ -109,7 +113,7 @@ export const findOrCreateWalletUser = async (chain: string, address: string): Pr
   return db.transaction(async tx => {
     const [row] = await tx.insert(schema.users).values({ username }).returning({ id: schema.users.id })
     await tx.insert(schema.walletAccounts).values({ userId: row.id, chain, address })
-    await provisionWallet(tx, row.id)
+    await provision(tx, row.id)
     return { id: row.id, username }
   })
 }

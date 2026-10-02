@@ -5,7 +5,7 @@ export const CAR_W = 44
 export const HERO_R = 14
 export const HOP_SEC = 0.42
 
-export type Car = { y: number; v: number; ve: number; len: number; hue: number }
+export type Car = { id: number; y: number; v: number; ve: number; len: number; hue: number }
 export type Lane = { cars: Car[]; timer: number; rate: number }
 
 const SPEED_MIN = 180
@@ -17,6 +17,7 @@ const FAST_CHANCE = 0.12
 const FAST_MIN = 950
 const FAST_MAX = 1400
 
+let nextCarId = 1   // unique per process: lets a snapshot refer to a car across frames
 const exp = (rate: number) => -Math.log(1 - Math.random()) / rate
 
 export const makeLane = (rate: number, H: number): Lane => {
@@ -36,7 +37,7 @@ export const updateLane = (lane: Lane, dt: number, H: number) => {
       const v = Math.random() < FAST_CHANCE
         ? FAST_MIN + Math.random() * (FAST_MAX - FAST_MIN)
         : SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN)
-      lane.cars.push({ y: -len, v, ve: v, len, hue: Math.random() * 360 })
+      lane.cars.push({ id: nextCarId++, y: -len, v, ve: v, len, hue: Math.random() * 360 })
     }
   }
   // cars queue behind slower ones instead of driving through them

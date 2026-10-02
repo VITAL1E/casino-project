@@ -16,9 +16,17 @@ const Hole = lazy(() => import('../games/hole/Hole'))
 const RoadCross = lazy(() => import('../games/roadcross/RoadCross'))
 const StormRoyale = lazy(() => import('../games/storm/StormRoyale'))
 const Flappy = lazy(() => import('../games/flappy/Flappy'))
+const Mines = lazy(() => import('../games/mines/Mines'))
+const Plinko = lazy(() => import('../games/plinko/Plinko'))
+const Crash = lazy(() => import('../games/crash/Crash'))
+const Keno = lazy(() => import('../games/keno/Keno'))
+const Limbo = lazy(() => import('../games/limbo/Limbo'))
+const HiLo = lazy(() => import('../games/hilo/HiLo'))
+const Blackjack = lazy(() => import('../games/blackjack/Blackjack'))
+const Roulette = lazy(() => import('../games/roulette/Roulette'))
 
 // Originals we build ourselves; everything else waits for a provider iframe
-const PLAYABLE: Partial<Record<string, React.ComponentType>> = { o1: Dice, o10: Slither, o11: Agar, o12: Chicken, o13: Paper, o14: Hole, o15: RoadCross, o16: Flappy, o17: StormRoyale }
+const PLAYABLE: Partial<Record<string, React.ComponentType>> = { o1: Dice, o2: Mines, o3: Plinko, o4: Crash, o5: Keno, o6: Limbo, o7: HiLo, o8: Blackjack, o9: Roulette, o10: Slither, o11: Agar, o12: Chicken, o13: Paper, o14: Hole, o15: RoadCross, o16: Flappy, o17: StormRoyale }
 
 // Keyed by id in Game below so switching games remounts this fresh — that's
 // what resets session/theatre/fav/info, rather than an effect doing it.
@@ -59,6 +67,7 @@ const GameView = ({ id }: { id: string }) => {
 
   return (
     <div className="gp-page">
+      <h1 className="sr-only">{game.title}</h1>
       <Seo title={`Play ${game.title} — ${groupLabel} | STACK`} description={`Play ${game.title} (${game.provider}) on STACK. ${groupLabel} with transparent rules and no bonus traps.`} />
       <div className="gp-crumbs">
         <Link to="/casino" className="gp-link">Casino</Link>
@@ -84,7 +93,7 @@ const GameView = ({ id }: { id: string }) => {
               <div className="gp-launch-bg" style={art} />
               <div className="gp-launch-card">
                 <div className="gp-launch-art" style={art} />
-                <h1>{game.title}</h1>
+                <h2>{game.title}</h2>
                 <p>{game.provider}</p>
                 <div className="gp-launch-btns">
                   <button className="gp-btn gp-btn--primary" onClick={() => navigate('/')}>Play for real</button>

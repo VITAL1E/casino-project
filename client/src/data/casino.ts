@@ -19,12 +19,12 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
 const artFor = (g: Game) => Object.entries(gameArt).find(([p]) => { const [file, folder] = p.split("/").reverse(); return folder === ART_DIR[g.group] && file.replace(/\.\w+$/, "") === slug(g.title) })?.[1]
 
 const RAW_GAMES: Game[] = [
-  { id: 'o12', title: 'Chicken Royale', provider: 'Originals', group: 'arcade', mode: 'single', hue: 45 },
+  { id: 'o12', title: 'Chicken Royale', provider: 'Originals', group: 'arcade', mode: 'multi', hue: 45 },
   { id: 'o10', title: 'Slither Royale', provider: 'Originals', group: 'arcade', mode: 'multi', hue: 140 },
-  { id: 'o11', title: 'Agar Royale', provider: 'Originals', group: 'arcade', mode: 'single', hue: 20 },
-  { id: 'o13', title: 'Paper Royale', provider: 'Originals', group: 'arcade', mode: 'single', hue: 90 },
-  { id: 'o14', title: 'Hole Royale', provider: 'Originals', group: 'arcade', mode: 'single', hue: 260 },
-  { id: 'o17', title: 'Storm Royale', provider: 'Originals', group: 'arcade', mode: 'single', hue: 275 },
+  { id: 'o11', title: 'Agar Royale', provider: 'Originals', group: 'arcade', mode: 'multi', hue: 20 },
+  { id: 'o13', title: 'Paper Royale', provider: 'Originals', group: 'arcade', mode: 'multi', hue: 90 },
+  { id: 'o14', title: 'Hole Royale', provider: 'Originals', group: 'arcade', mode: 'multi', hue: 260 },
+  { id: 'o17', title: 'Storm Royale', provider: 'Originals', group: 'arcade', mode: 'multi', hue: 275 },
   { id: 'o15', title: 'Road Cross', provider: 'Originals', group: 'arcade', mode: 'single', hue: 110 },
   { id: 'o16', title: 'Flappy Cash', provider: 'Originals', group: 'arcade', mode: 'single', hue: 55 },
   { id: 'o1', title: 'Dice',      provider: 'Originals', group: 'classics', hue: 215 },
@@ -79,7 +79,22 @@ export const getGame = (id: string) => GAMES.find(g => g.id === id)
 const VOLATILITY = ['Low', 'Medium', 'High', 'Very High']
 
 // Deterministic mock stats until a provider API supplies real ones
+// Real figures for the classic games (see client/src/games/classics/math.ts); everything else is still mock data.
+const CLASSIC_META: Record<string, { rtp: string; volatility: string; maxWin: string }> = {
+  o1: { rtp: '99.00', volatility: 'Adjustable', maxWin: '9,900x' },
+  o2: { rtp: '99.00', volatility: 'Adjustable', maxWin: '1,000,000 per bet' },
+  o3: { rtp: '99.00', volatility: 'Adjustable', maxWin: 'up to ~480x' },
+  o4: { rtp: '99.00', volatility: 'High', maxWin: '1,000,000 per bet' },
+  o5: { rtp: '99.00', volatility: 'Adjustable', maxWin: 'up to ~10,000x' },
+  o6: { rtp: '99.00', volatility: 'Adjustable', maxWin: '1,000,000 per bet' },
+  o7: { rtp: '99.00', volatility: 'Adjustable', maxWin: '1,000,000 per bet' },
+  o8: { rtp: '98.00', volatility: 'Low', maxWin: '2.5x (blackjack pays 3:2)' },
+  o9: { rtp: '97.30', volatility: 'Adjustable', maxWin: '36x' },
+}
+
 export const gameMeta = (game: Game) => {
+  const real = CLASSIC_META[game.id]
+  if (real) return real
   const n = [...game.id].reduce((a, c) => a + c.charCodeAt(0), 0)
   return {
     rtp: (94 + (n % 40) / 10).toFixed(2),

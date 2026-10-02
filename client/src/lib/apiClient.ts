@@ -5,6 +5,9 @@
 // re-implementing "fetch with credentials, throw on !res.ok".
 export const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8787'
 
+// Behind a reverse proxy the API lives on the page's own origin (VITE_API_URL=""): WebSocket URLs must still be absolute.
+export const WS_BASE = API_BASE ? API_BASE.replace(/^http/, 'ws') : location.origin.replace(/^http/, 'ws')
+
 export class ApiError extends Error {}
 
 export const apiCall = async <T>(path: string, body?: unknown): Promise<T> => {

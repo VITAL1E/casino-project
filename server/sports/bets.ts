@@ -2,7 +2,9 @@
 // server's own cached line for that event and prices the bet off that, the
 // same "server is authoritative" rule the Slither replay uses for payouts.
 import { eq, and, desc } from 'drizzle-orm'
-import { debit } from '../store'
+import { randomUUID } from 'node:crypto'
+import { debit, credit } from '../wallet'
+import { recordPlaced, recordResult } from '../rewards/progress'
 import { PublicError, parseStake } from '../security'
 import { findEvent, type OddsEvent } from './oddsApi'
 import { db, schema } from '../db'
@@ -42,13 +44,18 @@ export const placeBet = async (
   if (new Date(event.commenceTime).getTime() <= Date.now()) throw new PublicError('this event has already started')
 
   const potentialPayout = Math.round(stake * odds * 100) / 100
-  const balance = await debit(userId, stake, eventId)
-
-  const [row] = await db.insert(schema.sportsBets).values({
-    userId, eventId, sportKey, commenceTime: new Date(event.commenceTime),
-    homeTeam: event.homeTeam, awayTeam: event.awayTeam, selection,
-    odds: String(odds), stake: String(stake), potentialPayout: String(potentialPayout),
-  }).returning({ id: schema.sportsBets.id, createdAt: schema.sportsBets.createdAt })
+  const betId = randomUUID()   // the idempotency ref for both the stake and the payout
+  // Debit, rewards update and bet row commit together: any failure rolls the stake back.
+  const { balance, row } = await db.transaction(async tx => {
+    const balance = await debit(userId, stake, betId, tx)
+    await recordPlaced(tx, userId, 'sports', stake)
+    const [row] = await tx.insert(schema.sportsBets).values({
+      id: betId, userId, eventId, sportKey, commenceTime: new Date(event.commenceTime),
+      homeTeam: event.homeTeam, awayTeam: event.awayTeam, selection,
+      odds: String(odds), stake: String(stake), potentialPayout: String(potentialPayout),
+    }).returning({ id: schema.sportsBets.id, createdAt: schema.sportsBets.createdAt })
+    return { balance, row }
+  })
 
   return {
     balance,
@@ -106,17 +113,12 @@ export const settleBet = async (betId: string, userId: string, potentialPayout: 
     const [updated] = await tx.update(schema.sportsBets)
       .set({ status: won ? 'won' : 'lost', settledAt: new Date() })
       .where(and(eq(schema.sportsBets.id, betId), eq(schema.sportsBets.status, 'pending')))
-      .returning({ id: schema.sportsBets.id })
+      .returning({ id: schema.sportsBets.id, stake: schema.sportsBets.stake })
     if (!updated) return
 
-    if (won) {
-      const [wallet] = await tx.select({ balance: schema.wallets.balance })
-        .from(schema.wallets).where(eq(schema.wallets.userId, userId)).for('update')
-      const next = Math.round((Number(wallet.balance) + potentialPayout) * 100) / 100
-      await tx.update(schema.wallets).set({ balance: String(next) }).where(eq(schema.wallets.userId, userId))
-      await tx.insert(schema.ledger).values({
-        userId, amount: String(potentialPayout), reason: 'payout', roundId: betId, balanceAfter: String(next),
-      })
+    if (won) {   // same transaction: marked won and paid, or neither
+      await credit(userId, potentialPayout, betId, tx)
+      await recordResult(tx, userId, 'sports', Number(updated.stake), potentialPayout)
     }
   })
 }

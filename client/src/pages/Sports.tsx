@@ -149,6 +149,7 @@ const Sports = () => {
   return (
     <div className="sp-page">
       <Seo {...seoFor('/sports')} />
+      <h1 className="sr-only">Sportsbook</h1>
       <div className="sp-strip">
         <button className="sp-strip-btn" title="Home"><Home size={20} strokeWidth={1.5} /></button>
         <button className="sp-strip-btn" title="Live"><Radio size={20} strokeWidth={1.5} /></button>

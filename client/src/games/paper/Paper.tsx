@@ -1,5 +1,7 @@
-import RoyaleShell, { type Adapter } from '../royale/RoyaleShell'
-import { createWorld, step, land, N, type World } from './engine'
+import NetShell, { type NetAdapter } from '../net/NetShell'
+import { setTarget, easeToTargets } from '../net/smooth'
+import { land, N, type World, type Player } from './engine'
+import type { PaperSnap } from './net'
 
 const layout = (W: number, H: number) => {
   const size = Math.min(W, H) - 16
@@ -8,19 +10,34 @@ const layout = (W: number, H: number) => {
 
 const pct = (w: World, id: number) => `${((land(w, id) / (N * N)) * 100).toFixed(1)}%`
 
-const adapter: Adapter<World> = {
+const adapter: NetAdapter<World, PaperSnap> = {
+  key: 'paper',
   title: 'Paper Royale',
   blurb: 'Claim land by drawing loops out of your territory and back home. Cross a rival\'s trail to eliminate them, but if anyone crosses yours you\'re out. Most land after 1 minute (or last one standing) takes the pool.',
-  create: createWorld,
-  step,
-  over: w => w.over,
-  time: w => w.t,
-  skip: w => { while (!w.over) step(w, 0.05) },
-
-  result: w => {
-    const me = w.players.find(p => p.human)!
-    return { won: me.id === w.winner, place: me.place, kills: me.kills }
+  create: (you, seats) => {
+    const players: Player[] = seats.map(s => ({
+      id: s.id, name: s.name, hue: s.hue, human: s.id === you, auto: false,
+      x: 0, y: 0, angle: 0, want: 0, alive: true, trail: [], kills: 0, place: 0, aggr: 0, think: 0, h0: 0, dir: 1, a: 0, b: 0, dist: 0,
+    }))
+    return { t: 0, owner: new Uint8Array(N * N), trailOf: new Uint8Array(N * N), players, over: false, winner: -1 }
   },
+
+  apply: (w, snap) => {
+    w.t = snap.t
+    w.trailOf.fill(0)
+    for (const s of snap.players) {
+      const p = w.players[s.id]
+      setTarget(p, s.x, s.y)
+      p.angle = s.angle; p.alive = s.al; p.kills = s.k; p.place = s.p; p.trail = s.trail
+      for (const c of s.trail) w.trailOf[c] = s.id + 1
+    }
+    if (snap.owner) {
+      const bin = atob(snap.owner)
+      for (let i = 0; i < bin.length; i++) w.owner[i] = bin.charCodeAt(i)
+    }
+  },
+
+  smooth: (w, dt) => easeToTargets(w.players, dt),
 
   hud: w => {
     const me = w.players.find(p => p.human)!
@@ -43,7 +60,7 @@ const adapter: Adapter<World> = {
   aim: (w, px, py, W, H) => {
     const me = w.players.find(p => p.human)!
     const { cell, ox, oy } = layout(W, H)
-    return Math.atan2(py - (oy + me.y * cell), px - (ox + me.x * cell))
+    return { want: Math.atan2(py - (oy + me.y * cell), px - (ox + me.x * cell)) }
   },
 
   draw: (ctx, w, W, H, c) => {
@@ -99,6 +116,6 @@ const adapter: Adapter<World> = {
   },
 }
 
-const Paper = () => <RoyaleShell adapter={adapter} />
+const Paper = () => <NetShell adapter={adapter} />
 
 export default Paper

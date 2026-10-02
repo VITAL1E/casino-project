@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Cookie } from 'lucide-react'
 
 const KEY = 'stack.cookies.accepted'
@@ -16,10 +17,10 @@ const CookieBanner = () => {
   }
 
   return (
-    <div className="cookie-banner">
+    <div className="cookie-banner" role="region" aria-label="Cookie notice">
       <Cookie size={18} strokeWidth={1.75} />
       <p>We use cookies to provide you with the best possible experience.</p>
-      <button className="cookie-btn cookie-btn--ghost">Learn More</button>
+      <Link to="/cookies" className="cookie-btn cookie-btn--ghost">Learn More</Link>
       <button className="cookie-btn cookie-btn--accept" onClick={accept}>Accept</button>
     </div>
   )

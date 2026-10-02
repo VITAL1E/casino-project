@@ -1,4 +1,5 @@
 import { genMap, mulberry32, MAP_R, type Box, type GameMap } from './map'
+import { pickSeats } from '../net/seats'
 
 export { MAP_R }
 export const ROUND_SEC = 100
@@ -39,6 +40,7 @@ export type Player = {
   name: string
   hue: number
   human: boolean
+  auto: boolean   // a disconnected human is steered by the bot AI
   x: number; y: number; z: number
   vy: number
   yaw: number
@@ -81,6 +83,7 @@ export type GameEvent =
 
 export type World = {
   t: number
+  seed: number
   map: GameMap
   players: Player[]
   loot: Loot[]
@@ -99,16 +102,18 @@ export const stormRadius = (t: number) =>
 
 const rangeOf = (p: Player) => WEAPONS[p.weapons[p.slot]].range
 
-export const createWorld = (seed = Math.floor(Math.random() * 1e9), allBots = false): World => {
+// The map depends only on `seed` (genMap runs first), so a client can rebuild it from the seed alone.
+export const createWorld = (humans: string[], seed = Math.floor(Math.random() * 1e9)): { world: World; seats: number[] } => {
   const rand = mulberry32(seed)
   const map = genMap(rand, PLAYERS)
-  const humanSlot = allBots ? -1 : Math.floor(rand() * PLAYERS)
+  const seats = pickSeats(humans.length, PLAYERS)
   let bot = 0
   const players: Player[] = map.spawns.map((s, i) => ({
     id: i,
-    name: i === humanSlot ? 'You' : NAMES[bot++ % NAMES.length],
+    name: seats.includes(i) ? humans[seats.indexOf(i)] : NAMES[bot++ % NAMES.length],
     hue: (i * 36 + 10) % 360,
-    human: i === humanSlot,
+    human: seats.includes(i),
+    auto: false,
     x: s.x, y: 0, z: s.z, vy: 0,
     yaw: Math.atan2(-s.z, -s.x), pitch: 0,
     moveX: 0, moveZ: 0,
@@ -120,7 +125,7 @@ export const createWorld = (seed = Math.floor(Math.random() * 1e9), allBots = fa
     stuckT: 0, px: s.x, pz: s.z, skill: 0.5 + rand() * 0.5, goalX: 0, goalZ: 0, jumpT: 0,
   }))
 
-  const w: World = { t: 0, map, players, loot: [], events: [], lootTimer: 6, lootId: 1, rand, over: false, winner: -1 }
+  const w: World = { t: 0, seed, map, players, loot: [], events: [], lootTimer: 6, lootId: 1, rand, over: false, winner: -1 }
 
   const kinds: LootKind[] = [
     ...Array(14).fill('ar'), ...Array(9).fill('shotgun'), ...Array(5).fill('sniper'),
@@ -131,7 +136,7 @@ export const createWorld = (seed = Math.floor(Math.random() * 1e9), allBots = fa
     const s = spots[i % spots.length]
     w.loot.push({ id: w.lootId++, x: s.x + (rand() - 0.5) * 1.5, z: s.z + (rand() - 0.5) * 1.5, kind: k })
   })
-  return w
+  return { world: w, seats }
 }
 
 // ---------- geometry ----------
@@ -407,7 +412,8 @@ export type Input = {
   slot?: number
 }
 
-export const step = (w: World, dt: number, input?: Input) => {
+// `inputs` is indexed by player id; a human with no entry keeps its last input.
+export const step = (w: World, dt: number, inputs: (Input | undefined)[] = []) => {
   if (w.over) return
   const R = stormRadius(w.t)
 
@@ -415,7 +421,8 @@ export const step = (w: World, dt: number, input?: Input) => {
     if (!p.alive) continue
     let jump = false, sprint = false, aim: [number, number, number] | undefined
 
-    if (p.human) {
+    if (p.human && !p.auto) {
+      const input = inputs[p.id]
       if (input) {
         p.moveX = input.mx; p.moveZ = input.mz
         p.yaw = input.yaw; p.pitch = input.pitch

@@ -1,21 +1,26 @@
+import { pickSeats } from '../net/seats'
+
 export const ROUND_SEC = 60
 export const PLAYERS = 10
-export const R_START = 12
-export const R_END = 4.5
+export const R_START = 24
+export const R_END = 8
 export const MAX_HP = 6
 
-const SPEED = 5.5
-const EGG_SPEED = 15
-const EGG_LIFE = 1.1
+const SPEED = 6.2
+const EGG_SPEED = 17
+export const EGG_LIFE = 1.3
 const GOLD_SHOTS = 3
 const HIT_DIST = 0.75
 const FALL_TIME = 1
+
+export type Input = { mx: number; mz: number; angle: number; fire: boolean }
 
 export type Chicken = {
   id: number
   name: string
   hue: number
   human: boolean
+  auto: boolean   // a disconnected human is steered by the bot AI
   x: number
   z: number
   vx: number
@@ -43,8 +48,8 @@ export type GameEvent =
   | { type: 'splat'; x: number; z: number; gold: boolean }
   | { type: 'boom'; x: number; z: number }
   | { type: 'throw'; x: number; z: number }
-  | { type: 'cooked'; x: number; z: number; hue: number }
-  | { type: 'splash'; x: number; z: number }
+  | { type: 'cooked'; x: number; z: number; hue: number; by: number }   // by = hue of the chicken that did it, -1 if nobody
+  | { type: 'splash'; x: number; z: number; hue: number }
   | { type: 'gold'; x: number; z: number }
 
 export type World = {
@@ -62,19 +67,21 @@ const NAMES = ['Clucky', 'Nugget', 'Drumstick', 'Henrietta', 'Yolko', 'Clucknorr
 
 export const arenaRadius = (t: number) => R_START + (R_END - R_START) * Math.min(t / ROUND_SEC, 1)
 
-export const createWorld = (): World => {
-  const humanSlot = Math.floor(Math.random() * PLAYERS)
+export const createWorld = (humans: string[]): { world: World; seats: number[] } => {
+  const seats = pickSeats(humans.length, PLAYERS)
   let bot = 0
   const chickens: Chicken[] = Array.from({ length: PLAYERS }, (_, i) => {
     const a = (i / PLAYERS) * Math.PI * 2
-    const human = i === humanSlot
+    const humanIdx = seats.indexOf(i)
+    const human = humanIdx >= 0
     return {
       id: i,
-      name: human ? 'You' : NAMES[bot++],
+      name: human ? humans[humanIdx] : NAMES[bot++],
       hue: (i * 36 + 20) % 360,
       human,
-      x: Math.cos(a) * 8,
-      z: Math.sin(a) * 8,
+      auto: false,
+      x: Math.cos(a) * 17,
+      z: Math.sin(a) * 17,
       vx: 0, vz: 0,
       angle: a + Math.PI,
       moveX: 0, moveZ: 0,
@@ -90,7 +97,7 @@ export const createWorld = (): World => {
       fire: false,
     }
   })
-  return { t: 0, chickens, eggs: [], pickups: [], events: [], pickupTimer: 4, over: false, winner: -1 }
+  return { world: { t: 0, chickens, eggs: [], pickups: [], events: [], pickupTimer: 4, over: false, winner: -1 }, seats }
 }
 
 const aliveCount = (w: World) => w.chickens.reduce((n, c) => n + (c.alive ? 1 : 0), 0)
@@ -100,7 +107,7 @@ const eliminate = (w: World, c: Chicken, by: Chicken | null, fell: boolean) => {
   c.alive = false
   c.place = aliveCount(w) + 1
   if (by && by !== c) by.kills++
-  w.events.push(fell ? { type: 'splash', x: c.x, z: c.z } : { type: 'cooked', x: c.x, z: c.z, hue: c.hue })
+  w.events.push(fell ? { type: 'splash', x: c.x, z: c.z, hue: c.hue } : { type: 'cooked', x: c.x, z: c.z, hue: c.hue, by: by ? by.hue : -1 })
 }
 
 const hurt = (w: World, c: Chicken, by: Chicken, dx: number, dz: number, power: number) => {
@@ -169,17 +176,14 @@ const think = (w: World, c: Chicken, R: number) => {
     const tx = target.x + (target.moveX * SPEED + target.vx) * lead * c.skill
     const tz = target.z + (target.moveZ * SPEED + target.vz) * lead * c.skill
     c.angle = Math.atan2(tz - c.z, tx - c.x) + (Math.random() - 0.5) * (1 - c.skill) * 0.9
-    c.fire = td < 11
+    c.fire = td < 15
   } else {
     c.fire = false
   }
 }
 
-export const step = (
-  w: World,
-  dt: number,
-  input?: { mx: number; mz: number; angle: number; fire: boolean },
-) => {
+// `inputs` is indexed by chicken id; a human with no entry keeps its last input.
+export const step = (w: World, dt: number, inputs: (Input | undefined)[] = []) => {
   if (w.over) return
   const R = arenaRadius(w.t)
 
@@ -194,7 +198,8 @@ export const step = (
       continue
     }
 
-    if (c.human) {
+    if (c.human && !c.auto) {
+      const input = inputs[c.id]
       if (input) {
         const l = Math.hypot(input.mx, input.mz) || 1
         c.moveX = input.mx / l * (input.mx || input.mz ? 1 : 0)

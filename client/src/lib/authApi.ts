@@ -14,6 +14,9 @@ export const register = (username: string, password: string, email?: string) =>
 export const login = (username: string, password: string) =>
   apiCall<{ user: User }>('/api/auth/login', { username, password }).then(r => r.user)
 
+// TEMPORARY (testing): resolves to a guest account when the server has GUEST_PLAY=1, rejects otherwise.
+export const guest = () => apiCall<{ user: User }>('/api/auth/guest', {}).then(r => r.user)
+
 export const logout = () => apiCall<{ ok: true }>('/api/auth/logout', {})
 
 export const me = () => apiCall<{ user: User | null }>('/api/auth/me').then(r => r.user)

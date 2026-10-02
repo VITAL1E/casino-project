@@ -21,7 +21,8 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const radiusOf = (len: number) => 7 + Math.min(len / 120, 7)
 
 const Slither = () => {
-  const { user, openAuth } = useAuth()
+  const { user, openAuth, guestLogin } = useAuth()
+  const pendingJoin = useRef<number | null>(null)   // TEMPORARY (guest play): join as soon as the new session's socket is ready
   // The balance and the whole game live on the server. This component only
   // renders snapshots and sends steering inputs; it never decides an outcome.
   const [balance, setBalance] = useState<number | null>(null)
@@ -73,6 +74,7 @@ const Slither = () => {
         case 'ready':
           setBalance(msg.balance)
           if (!msg.resume) setPhase(p => (p === 'connecting' || p === 'offline' ? 'lobby' : p))   // else the queued/start message follows
+          if (pendingJoin.current !== null && !msg.resume) { sock.current?.send({ t: 'join', bet: pendingJoin.current }); pendingJoin.current = null }
           break
         case 'queued':
           setBalance(msg.balance)
@@ -133,8 +135,12 @@ const Slither = () => {
     return () => clearInterval(id)
   }, [phase])
 
-  const join = () => {
-    if (phase === 'offline' && offline === 'login') return openAuth('login')   // logged out: the login modal opens instead
+  const join = async () => {
+    if (phase === 'offline' && offline === 'login') {
+      // TEMPORARY: with GUEST_PLAY=1 on the server a guest account is created and the join continues; otherwise the login modal opens
+      if (await guestLogin()) { pendingJoin.current = buyIn; return }
+      return openAuth('login')
+    }
     setError('')
     sock.current?.send({ t: 'join', bet: buyIn })
   }

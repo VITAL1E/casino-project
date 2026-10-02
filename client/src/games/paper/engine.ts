@@ -1,3 +1,5 @@
+import { pickSeats } from '../net/seats'
+
 export const N = 60
 export const ROUND_SEC = 60
 export const PLAYERS = 10
@@ -5,11 +7,14 @@ export const PLAYERS = 10
 const SPEED = 5.5
 const TURN = 3.4
 
+export type Input = { want: number }
+
 export type Player = {
   id: number
   name: string
   hue: number
   human: boolean
+  auto: boolean   // a disconnected human is steered by the bot AI
   x: number
   y: number
   angle: number
@@ -46,21 +51,23 @@ export const land = (w: World, id: number) => {
   return n
 }
 
-export const createWorld = (): World => {
-  const humanSlot = Math.floor(Math.random() * PLAYERS)
+export const createWorld = (humans: string[]): { world: World; seats: number[] } => {
+  const seats = pickSeats(humans.length, PLAYERS)
   let bot = 0
   const owner = new Uint8Array(N * N)
   const players: Player[] = Array.from({ length: PLAYERS }, (_, i) => {
     const a = (i / PLAYERS) * Math.PI * 2
-    const human = i === humanSlot
+    const humanIdx = seats.indexOf(i)
+    const human = humanIdx >= 0
     const x = Math.round(N / 2 + Math.cos(a) * 21)
     const y = Math.round(N / 2 + Math.sin(a) * 21)
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) owner[(y + dy) * N + x + dx] = i + 1
     return {
       id: i,
-      name: human ? 'You' : NAMES[bot++],
+      name: human ? humans[humanIdx] : NAMES[bot++],
       hue: (i * 36 + 200) % 360,
       human,
+      auto: false,
       x: x + 0.5, y: y + 0.5,
       angle: a + Math.PI,
       want: a + Math.PI,
@@ -75,7 +82,7 @@ export const createWorld = (): World => {
       a: 6, b: 6, dist: 0,
     }
   })
-  return { t: 0, owner, trailOf: new Uint8Array(N * N), players, over: false, winner: -1 }
+  return { world: { t: 0, owner, trailOf: new Uint8Array(N * N), players, over: false, winner: -1 }, seats }
 }
 
 const aliveCount = (w: World) => w.players.reduce((n, p) => n + (p.alive ? 1 : 0), 0)
@@ -176,19 +183,21 @@ const think = (w: World, p: Player) => {
   }
 }
 
-export const step = (w: World, dt: number, humanWant?: number) => {
+// `inputs` is indexed by player id; a human with no entry keeps its last heading.
+export const step = (w: World, dt: number, inputs: (Input | undefined)[] = []) => {
   if (w.over) return
   const slices = Math.ceil(dt / 0.02)
   const h = dt / slices
-  for (let s = 0; s < slices; s++) sub(w, h, humanWant)
+  for (let s = 0; s < slices; s++) sub(w, h, inputs)
 }
 
-const sub = (w: World, dt: number, humanWant?: number) => {
+const sub = (w: World, dt: number, inputs: (Input | undefined)[]) => {
   for (const p of w.players) {
     if (!p.alive) continue
 
-    if (p.human) {
-      if (humanWant !== undefined) p.want = humanWant
+    if (p.human && !p.auto) {
+      const inp = inputs[p.id]
+      if (inp) p.want = inp.want
     } else {
       p.think -= dt
       if (p.think <= 0) { p.think = 0.08 + Math.random() * 0.08; think(w, p) }

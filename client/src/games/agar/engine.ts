@@ -1,3 +1,5 @@
+import { pickSeats } from '../net/seats'
+
 export const ROUND_SEC = 60
 export const PLAYERS = 10
 export const R_START = 1300
@@ -7,13 +9,15 @@ const START_MASS = 20
 const FOOD_TARGET = 300
 
 export type Pt = { x: number; y: number }
-export type Food = Pt & { v: number; hue: number }
+export type Food = Pt & { id: number; v: number; hue: number }
+export type Input = { want: number }
 
 export type Cell = {
   id: number
   name: string
   hue: number
   human: boolean
+  auto: boolean   // a disconnected human is steered by the bot AI
   x: number
   y: number
   want: number
@@ -30,6 +34,7 @@ export type World = {
   t: number
   cells: Cell[]
   food: Food[]
+  nextFood: number
   over: boolean
   winner: number
 }
@@ -43,20 +48,22 @@ const speedOf = (c: Cell) => Math.max(70, 230 - radiusOf(c) * 1.6)
 const spawnFood = (w: World) => {
   const r = zoneRadius(w.t) * 0.95 * Math.sqrt(Math.random())
   const a = Math.random() * Math.PI * 2
-  w.food.push({ x: Math.cos(a) * r, y: Math.sin(a) * r, v: 1, hue: Math.random() * 360 })
+  w.food.push({ id: w.nextFood++, x: Math.cos(a) * r, y: Math.sin(a) * r, v: 1, hue: Math.random() * 360 })
 }
 
-export const createWorld = (): World => {
-  const humanSlot = Math.floor(Math.random() * PLAYERS)
+export const createWorld = (humans: string[]): { world: World; seats: number[] } => {
+  const seats = pickSeats(humans.length, PLAYERS)
   let bot = 0
   const cells: Cell[] = Array.from({ length: PLAYERS }, (_, i) => {
     const a = (i / PLAYERS) * Math.PI * 2
-    const human = i === humanSlot
+    const humanIdx = seats.indexOf(i)
+    const human = humanIdx >= 0
     return {
       id: i,
-      name: human ? 'You' : BOT_NAMES[bot++],
+      name: human ? humans[humanIdx] : BOT_NAMES[bot++],
       hue: (i * 36 + 200) % 360,
       human,
+      auto: false,
       x: Math.cos(a) * 900,
       y: Math.sin(a) * 900,
       want: a + Math.PI,
@@ -69,9 +76,9 @@ export const createWorld = (): World => {
       think: Math.random() * 0.2,
     }
   })
-  const w: World = { t: 0, cells, food: [], over: false, winner: -1 }
+  const w: World = { t: 0, cells, food: [], nextFood: 0, over: false, winner: -1 }
   for (let i = 0; i < FOOD_TARGET; i++) spawnFood(w)
-  return w
+  return { world: w, seats }
 }
 
 const aliveCount = (w: World) => w.cells.reduce((n, c) => n + (c.alive ? 1 : 0), 0)
@@ -88,7 +95,7 @@ const kill = (w: World, c: Cell, by: Cell | null) => {
     const r = radiusOf(c)
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2
-      w.food.push({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, v: c.mass / 8, hue: c.hue })
+      w.food.push({ id: w.nextFood++, x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, v: c.mass / 8, hue: c.hue })
     }
   }
 }
@@ -134,7 +141,8 @@ const think = (w: World, c: Cell) => {
   c.want = best ? Math.atan2(best.y - c.y, best.x - c.x) : c.want + (Math.random() - 0.5)
 }
 
-export const step = (w: World, dt: number, humanWant?: number) => {
+// `inputs` is indexed by cell id; a human with no entry keeps its last heading.
+export const step = (w: World, dt: number, inputs: (Input | undefined)[] = []) => {
   if (w.over) return
   const R = zoneRadius(w.t)
   const eaten: { c: Cell; by: Cell | null }[] = []
@@ -142,8 +150,9 @@ export const step = (w: World, dt: number, humanWant?: number) => {
   for (const c of w.cells) {
     if (!c.alive) continue
 
-    if (c.human) {
-      if (humanWant !== undefined) c.want = humanWant
+    if (c.human && !c.auto) {
+      const inp = inputs[c.id]
+      if (inp) c.want = inp.want
     } else {
       c.think -= dt
       if (c.think <= 0) { c.think = 0.1 + Math.random() * 0.1; think(w, c) }

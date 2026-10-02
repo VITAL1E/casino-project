@@ -26,6 +26,7 @@ const COLUMNS: { title: string; links: { label: string; to: string }[] }[] = [
     links: [
       { label: 'Terms of Service', to: '/terms' },
       { label: 'Privacy Policy', to: '/privacy' },
+      { label: 'Cookie Policy', to: '/cookies' },
       { label: 'Responsible Gambling', to: '/responsible-gambling' },
       { label: 'AML Policy', to: '/aml' },
       { label: 'Fairness', to: '/fairness' },
@@ -57,7 +58,7 @@ const Footer = () => (
     <div className="footer-cols">
       {COLUMNS.map(col => (
         <div key={col.title} className="footer-col">
-          <h4 className="footer-col-title">{col.title}</h4>
+          <h2 className="footer-col-title">{col.title}</h2>
           {col.links.map(l => (
             <Link key={l.label} to={l.to} className="footer-link">{l.label}</Link>
           ))}

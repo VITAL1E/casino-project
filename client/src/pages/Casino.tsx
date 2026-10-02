@@ -25,12 +25,13 @@ const Casino = () => {
   return (
     <div className="cg-page">
       <Seo {...seoFor('/casino')} />
+      <h1 className="sr-only">Casino games</h1>
       <div className="cg-promos">
         {PROMOS.map(({ tag, title, text, cta, icon: Icon, hue }) => (
           <div key={title} className="cg-promo">
             <div className="cg-promo-body">
               <span className="cg-promo-tag">{tag}</span>
-              <h3>{title}</h3>
+              <h2>{title}</h2>
               <p>{text}</p>
               <button className="cg-promo-btn" >{cta}</button>
             </div>

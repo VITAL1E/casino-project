@@ -1,9 +1,12 @@
+import { pickSeats } from '../net/seats'
+
 export const ROUND_SEC = 60
 export const PLAYERS = 10
 export const WORLD = 800
 
 export type Kind = 'coin' | 'tree' | 'car' | 'house' | 'tower'
-export type Thing = { x: number; y: number; r: number; kind: Kind; hue: number }
+export type Thing = { id: number; x: number; y: number; r: number; kind: Kind; hue: number }
+export type Input = { want: number }
 export type Sucked = Thing & { t: number; tx: number; ty: number; hole: number }
 
 export type Hole = {
@@ -11,6 +14,7 @@ export type Hole = {
   name: string
   hue: number
   human: boolean
+  auto: boolean   // a disconnected human is steered by the bot AI
   x: number
   y: number
   area: number
@@ -26,6 +30,7 @@ export type World = {
   t: number
   holes: Hole[]
   things: Thing[]
+  nextThing: number
   sucked: Sucked[]
   respawn: number
   over: boolean
@@ -52,9 +57,10 @@ const HUES: Record<Kind, () => number> = {
 export const radiusOf = (h: Hole) => Math.sqrt(h.area)
 const speedOf = (h: Hole) => Math.max(95, 210 - radiusOf(h) * 0.9)
 
-const spawn = (kind: Kind): Thing => {
+const spawn = (w: { nextThing: number }, kind: Kind): Thing => {
   const size = SIZES[kind].r
   return {
+    id: w.nextThing++,
     x: (Math.random() * 2 - 1) * (WORLD - size),
     y: (Math.random() * 2 - 1) * (WORLD - size),
     r: size * (0.85 + Math.random() * 0.3),
@@ -63,17 +69,19 @@ const spawn = (kind: Kind): Thing => {
   }
 }
 
-export const createWorld = (): World => {
-  const humanSlot = Math.floor(Math.random() * PLAYERS)
+export const createWorld = (humans: string[]): { world: World; seats: number[] } => {
+  const seats = pickSeats(humans.length, PLAYERS)
   let bot = 0
   const holes: Hole[] = Array.from({ length: PLAYERS }, (_, i) => {
     const a = (i / PLAYERS) * Math.PI * 2
-    const human = i === humanSlot
+    const humanIdx = seats.indexOf(i)
+    const human = humanIdx >= 0
     return {
       id: i,
-      name: human ? 'You' : NAMES[bot++],
+      name: human ? humans[humanIdx] : NAMES[bot++],
       hue: (i * 36 + 200) % 360,
       human,
+      auto: false,
       x: Math.cos(a) * 560,
       y: Math.sin(a) * 560,
       area: 22 * 22,
@@ -86,14 +94,15 @@ export const createWorld = (): World => {
     }
   })
   const things: Thing[] = []
+  const ids = { nextThing: 0 }
   for (const k of Object.keys(SIZES) as Kind[]) {
     for (let i = 0; i < SIZES[k].count; i++) {
-      const t = spawn(k)
+      const t = spawn(ids, k)
       // keep the spawn ring clear
       if (holes.every(h => Math.hypot(h.x - t.x, h.y - t.y) > 60 + t.r)) things.push(t)
     }
   }
-  return { t: 0, holes, things, sucked: [], respawn: 0, over: false, winner: -1 }
+  return { world: { t: 0, holes, things, nextThing: ids.nextThing, sucked: [], respawn: 0, over: false, winner: -1 }, seats }
 }
 
 const aliveCount = (w: World) => w.holes.reduce((n, h) => n + (h.alive ? 1 : 0), 0)
@@ -132,14 +141,16 @@ const think = (w: World, h: Hole) => {
   h.want = best ? Math.atan2(best.y - h.y, best.x - h.x) : h.want + (Math.random() - 0.5)
 }
 
-export const step = (w: World, dt: number, humanWant?: number) => {
+// `inputs` is indexed by hole id; a human with no entry keeps its last heading.
+export const step = (w: World, dt: number, inputs: (Input | undefined)[] = []) => {
   if (w.over) return
   const eaten: { h: Hole; by: Hole }[] = []
 
   for (const h of w.holes) {
     if (!h.alive) continue
-    if (h.human) {
-      if (humanWant !== undefined) h.want = humanWant
+    if (h.human && !h.auto) {
+      const inp = inputs[h.id]
+      if (inp) h.want = inp.want
     } else {
       h.think -= dt
       if (h.think <= 0) { h.think = 0.12 + Math.random() * 0.1; think(w, h) }
@@ -189,7 +200,7 @@ export const step = (w: World, dt: number, humanWant?: number) => {
   if (w.respawn <= 0) {
     w.respawn = 0.4
     for (const k of ['coin', 'tree', 'car'] as Kind[]) {
-      if (w.things.filter(t => t.kind === k).length < SIZES[k].count) w.things.push(spawn(k))
+      if (w.things.filter(t => t.kind === k).length < SIZES[k].count) w.things.push(spawn(w, k))
     }
   }
 

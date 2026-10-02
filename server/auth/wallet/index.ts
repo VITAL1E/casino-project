@@ -2,7 +2,7 @@
 // means writing one file next to ethereum.ts/solana.ts and adding it to
 // VERIFIERS below.
 import type { Request, Response } from 'express'
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import type { WalletVerifier } from './types'
 import { ethereumVerifier } from './ethereum'
 import { solanaVerifier } from './solana'
@@ -15,7 +15,11 @@ const VERIFIERS: Record<string, WalletVerifier> = {
 }
 
 const NONCE_TTL_MS = 5 * 60 * 1000
-type PendingNonce = { message: string; expiresAt: number }
+const MAX_PENDING = 10_000
+const CHALLENGE_COOKIE = 'stack.wallet_challenge'
+// Keyed by a random challenge id that only the requesting browser holds (httpOnly cookie), so nobody else can
+// overwrite or burn another user's pending challenge just by knowing their address.
+type PendingNonce = { key: string; message: string; expiresAt: number }
 const pendingNonces = new Map<string, PendingNonce>()
 
 setInterval(() => {
@@ -39,9 +43,17 @@ export const walletRoutes = {
       const address = String(req.query.address ?? '')
       if (!verifier.isValidAddress(address)) throw new Error('invalid address')
 
+      if (pendingNonces.size >= MAX_PENDING) throw new Error('too many pending sign-ins, try again later')
+
       const key = `${verifier.chain}:${verifier.normalize(address)}`
       const message = buildMessage(address, randomUUID())
-      pendingNonces.set(key, { message, expiresAt: Date.now() + NONCE_TTL_MS })
+      const old = req.cookies?.[CHALLENGE_COOKIE]
+      if (typeof old === 'string') pendingNonces.delete(old)   // one challenge per browser
+      const id = randomBytes(24).toString('hex')
+      pendingNonces.set(id, { key, message, expiresAt: Date.now() + NONCE_TTL_MS })
+      res.cookie(CHALLENGE_COOKIE, id, {
+        httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: NONCE_TTL_MS,
+      })
       res.json({ message })
     } catch (e) {
       res.status(400).json({ error: (e as Error).message })
@@ -57,9 +69,11 @@ export const walletRoutes = {
       if (typeof signature !== 'string' || !signature) throw new Error('missing signature')
 
       const key = `${verifier.chain}:${verifier.normalize(address)}`
-      const pending = pendingNonces.get(key)
-      if (!pending || pending.expiresAt < Date.now()) throw new Error('nonce expired — request a new one')
-      pendingNonces.delete(key)   // one-time use
+      const id = req.cookies?.[CHALLENGE_COOKIE]
+      const pending = typeof id === 'string' ? pendingNonces.get(id) : undefined
+      if (!pending || pending.key !== key || pending.expiresAt < Date.now()) throw new Error('nonce expired — request a new one')
+      pendingNonces.delete(id)   // one-time use
+      res.clearCookie(CHALLENGE_COOKIE)
 
       const ok = await verifier.verify(address, pending.message, signature)
       if (!ok) throw new Error('signature verification failed')

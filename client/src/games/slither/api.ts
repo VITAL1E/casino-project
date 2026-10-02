@@ -4,7 +4,7 @@
 //
 // Auth is the httpOnly session cookie, which the browser attaches to the
 // socket upgrade itself; the server refuses the upgrade if it is missing.
-import { API_BASE, ApiError } from '../../lib/apiClient'
+import { WS_BASE, ApiError } from '../../lib/apiClient'
 import { getWallet, resetWallet } from '../../lib/walletApi'
 import type { ClientMsg, ServerMsg } from './protocol'
 
@@ -13,7 +13,7 @@ export { ApiError, getWallet, resetWallet }
 export type SlitherSocket = { send: (msg: ClientMsg) => void; close: () => void }
 
 export const openSocket = (onMessage: (msg: ServerMsg) => void, onClose: () => void): SlitherSocket => {
-  const ws = new WebSocket(`${API_BASE.replace(/^http/, 'ws')}/ws/slither`)
+  const ws = new WebSocket(`${WS_BASE}/ws/slither`)
   ws.onmessage = e => {
     try { onMessage(JSON.parse(String(e.data)) as ServerMsg) } catch { /* ignore malformed frames */ }
   }

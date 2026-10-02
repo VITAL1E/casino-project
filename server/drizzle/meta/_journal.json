@@ -8,6 +8,34 @@
       "when": 1790713970196,
       "tag": "0000_early_sally_floyd",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790868357585,
+      "tag": "0001_busy_masked_marvel",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790869169944,
+      "tag": "0002_red_quasar",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790869901433,
+      "tag": "0003_lazy_magus",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790870685326,
+      "tag": "0004_brave_the_spike",
+      "breakpoints": true
     }
   ]
 }

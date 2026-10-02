@@ -27,7 +27,7 @@ const RouteFallback = () => (
 )
 
 const App = () => (
-  <BrowserRouter>
+  <BrowserRouter basename={import.meta.env.BASE_URL}>
     <Layout>
       <Suspense fallback={<RouteFallback />}>
         <Routes>

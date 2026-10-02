@@ -1,82 +1,143 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { RotateCcw, Trophy, Skull, FastForward } from 'lucide-react'
-import { useDemoBalance, round2 } from '../../hooks/useDemoBalance'
+import NetShell, { type NetAdapter } from '../net/NetShell'
+import { setTarget, easeToTargets } from '../net/smooth'
 import {
-  createWorld, step, rayCast, eyeOf, stormRadius, WEAPONS, ROUND_SEC, PLAYERS, MAP_R,
-  type World, type GameEvent, type WeaponKey,
+  rayCast, eyeOf, stormRadius, WEAPONS, ROUND_SEC, PLAYERS, MAP_R,
+  type World, type Player, type GameEvent, type WeaponKey,
 } from './engine'
+import { genMap, mulberry32, type Box } from './map'
+import type { StormInit, StormSnap } from './net'
 import { makeSoldier, makeTree, makeRock, makeCrate, makeWall, makeBuilt, makeLoot, WEAPON_COLOR, type Soldier } from './models'
 
-type Phase = 'lobby' | 'playing' | 'done'
-type Hud = {
+type Feed = { id: number; text: string; at: number }
+type StormUi = {
   t: number; alive: number; kills: number; hp: number; shield: number; mats: number
   weapons: WeaponKey[]; slot: number; me: boolean; stormIn: number; inStorm: boolean
-  hitFlash: boolean; flash: boolean
+  hitFlash: boolean; flash: boolean; locked: boolean; feed: Feed[]
 }
-type Feed = { id: number; text: string; at: number }
 
 const cssVar = (el: Element, name: string) => getComputedStyle(el).getPropertyValue(name).trim()
 const CAM_DIST = 4.2
 
-const StormRoyale = () => {
-  const { balance, setBalance, reset } = useDemoBalance()
+// input / view state shared with the render loop (module level: one Storm stage exists at a time)
+const flash = { current: 0 }
+const hitmark = { current: 0 }
+const view = { current: { yaw: 0, pitch: 0.1 } }
+const inp = { current: { keys: new Set<string>(), fire: false, jump: false, build: false, slot: undefined as number | undefined, locked: false } }
 
-  const [bet, setBet] = useState('1')
-  const [phase, setPhase] = useState<Phase>('lobby')
-  const [error, setError] = useState('')
-  const [hud, setHud] = useState<Hud | null>(null)
-  const [feed, setFeed] = useState<Feed[]>([])
-  const [locked, setLocked] = useState(false)
-  const flash = useRef(0)
-  const hitmark = useRef(0)
-  const [result, setResult] = useState<{ won: boolean; place: number; payout: number; kills: number; stake: number } | null>(null)
+const grab = () => {
+  const dom = document.querySelector('.st-stage canvas.sl-canvas') as HTMLCanvasElement | null
+  dom?.requestPointerLock?.()
+}
 
-  const amount = parseFloat(bet)
-  const pool = round2((amount > 0 ? amount : 0) * PLAYERS)
+const StormHud = ({ ui, timeLeft, pool }: { ui: StormUi; timeLeft: number; pool: number }) => {
+  const stormR = stormRadius(ui.t)
+  return (
+    <>
+      <div className="sl-hud sl-hud--tl">
+        <div className="sl-chip"><span>Time</span><b>{timeLeft}s</b></div>
+        <div className="sl-chip"><span>Alive</span><b>{ui.alive}/{PLAYERS}</b></div>
+        <div className="sl-chip"><span>Kills</span><b>{ui.kills}</b></div>
+        <div className="sl-chip"><span>Pool</span><b>{pool.toFixed(2)}</b></div>
+      </div>
 
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const miniRef = useRef<HTMLCanvasElement>(null)
-  const world = useRef<World | null>(null)
-  const stake = useRef(0)
-  const view = useRef({ yaw: 0, pitch: 0.1 })
-  const inp = useRef({ keys: new Set<string>(), fire: false, jump: false, build: false, slot: undefined as number | undefined, locked: false })
+      <div className={`st-storm${ui.inStorm ? ' st-storm--in' : ''}`}>
+        {ui.inStorm ? 'YOU ARE IN THE STORM' : ui.stormIn > 0 ? `Storm forms in ${Math.ceil(ui.stormIn)}s` : `Safe zone ${Math.round(stormR)}m`}
+      </div>
 
-  const finish = useCallback((w: World) => {
+      <div className="st-feed">
+        {ui.feed.map(f => <div key={f.id}>{f.text}</div>)}
+      </div>
+
+      <canvas className="st-mini" width={150} height={150} />
+
+      <div className="st-bars">
+        <div className="st-bar st-bar--shield"><i style={{ width: `${ui.shield}%` }} /></div>
+        <div className="st-bar st-bar--hp"><i style={{ width: `${ui.hp}%` }} /></div>
+        <small>{Math.ceil(ui.hp)} HP · {Math.ceil(ui.shield)} shield · {ui.mats} wood</small>
+      </div>
+
+      <div className="st-slots">
+        {ui.weapons.map((k, i) => (
+          <div key={k} className={`st-slot${i === ui.slot ? ' st-slot--on' : ''}`} style={{ borderColor: i === ui.slot ? `#${WEAPON_COLOR[k].toString(16).padStart(6, '0')}` : undefined }}>
+            <b>{i + 1}</b>{WEAPONS[k].name}
+          </div>
+        ))}
+      </div>
+
+      {ui.me && <div className="st-cross" />}
+      {ui.hitFlash && <div className="st-hit" />}
+      {ui.flash && <div className="st-flash" />}
+      {ui.inStorm && <div className="st-flash st-flash--storm" />}
+
+      {ui.me && !ui.locked && (
+        <button className="st-lock" onClick={grab}>
+          <b>Click to play</b>
+          <span>WASD move · Mouse aim & shoot · Space jump · Shift run · F build wall · 1–4 weapons</span>
+        </button>
+      )}
+      {!ui.me && (
+        <div className="sl-hud sl-hud--bottom">
+          <small>You were eliminated — watching until the match ends</small>
+        </div>
+      )}
+    </>
+  )
+}
+
+// Built walls are delta-encoded by id; the static map is rebuilt from the seed.
+const adapter: NetAdapter<World, StormSnap, StormInit> = {
+  key: 'storm',
+  title: 'Storm Royale',
+  blurb: 'Third-person battle royale. Loot weapons, build walls for cover, and outlast the field while the storm closes in. WASD move · Mouse aim · Click shoot · Space jump · Shift run · F build a wall · 1–4 / wheel weapons. Desktop only.',
+  roundSec: ROUND_SEC,
+  stageClass: 'st-stage',
+
+  create: (you, seats, init) => {
+    const map = genMap(mulberry32(init.seed), PLAYERS)
+    const players: Player[] = seats.map((s, i) => ({
+      id: s.id, name: s.name, hue: s.hue, human: s.id === you, auto: false,
+      x: map.spawns[i].x, y: 0, z: map.spawns[i].z, vy: 0, yaw: 0, pitch: 0, moveX: 0, moveZ: 0,
+      hp: 100, shield: 0, mats: 100, weapons: ['pistol'], slot: 0, cooldown: 0, buildCd: 0,
+      alive: true, kills: 0, place: 0, fire: false, hurtT: 0, lastShot: -9,
+      think: 0, target: -1, seen: 0, strafe: 1, strafeT: 1, stuckT: 0, px: 0, pz: 0, skill: 0, goalX: 0, goalZ: 0, jumpT: 0,
+    }))
+    return { t: 0, seed: init.seed, map, players, loot: [], events: [], lootTimer: 0, lootId: 0, rand: Math.random, over: false, winner: -1 }
+  },
+
+  apply: (w, snap) => {
+    w.t = snap.t
+    for (const s of snap.players) {
+      const p = w.players[s.id]
+      setTarget(p, s.x, s.y, s.z)
+      p.yaw = s.yaw; p.pitch = s.pitch; p.hp = s.hp; p.shield = s.shield; p.mats = s.mats
+      p.weapons = s.weapons; p.slot = s.slot; p.alive = s.al; p.kills = s.k; p.place = s.p; p.lastShot = s.lastShot
+    }
+    const lootDel = new Set(snap.lootDel)
+    w.loot = w.loot.filter(l => !lootDel.has(l.id))
+    for (const [id, x, z, kind] of snap.lootAdd) if (!w.loot.some(l => l.id === id)) w.loot.push({ id, x, z, kind })
+    const buildDel = new Set(snap.buildDel)
+    w.map.boxes = w.map.boxes.filter(b => !buildDel.has(b.id))
+    for (const [id, x, z, bw, d, h, owner] of snap.buildAdd) {
+      if (w.map.boxes.some(b => b.id === id)) continue
+      const box: Box = { id, kind: 'build', x, z, w: bw, d, h, hp: 1, owner, born: w.t }
+      w.map.boxes.push(box)
+    }
+    w.events.push(...snap.events)   // consumed (and cleared) by the render loop
+  },
+
+  hud: w => {
     const me = w.players.find(p => p.human)!
-    const won = me.id === w.winner
-    const payout = won ? round2(stake.current * PLAYERS) : 0
-    if (payout > 0) setBalance(b => b + payout)
-    setResult({ won, place: me.place, payout, kills: me.kills, stake: stake.current })
-    setPhase('done')
-    if (document.pointerLockElement) document.exitPointerLock()
-  }, [setBalance])
+    return { t: w.t, chips: [], board: [], note: '', me: me.alive }
+  },
 
-  const start = () => {
-    if (!(amount > 0)) return setError('Enter a bet amount')
-    if (amount > balance) return setError('Insufficient balance')
-    setError('')
-    stake.current = amount
-    setBalance(b => b - amount)
-    const w = createWorld()
-    world.current = w
+  overlay: ({ ui, timeLeft, pool }) => (ui ? <StormHud ui={ui as StormUi} timeLeft={timeLeft} pool={pool} /> : null),
+
+  mount: (wrap, api) => {
+    const w = api.world()
     const me = w.players.find(p => p.human)!
     view.current = { yaw: me.yaw, pitch: 0.12 }
-    setResult(null); setHud(null); setFeed([])
-    setPhase('playing')
-  }
-
-  const skip = () => {
-    const w = world.current
-    if (!w) return
-    while (!w.over) { step(w, 0.05); w.events.length = 0 }
-  }
-
-  useEffect(() => {
-    if (phase !== 'playing') return
-    const wrap = wrapRef.current!
-    const w = world.current!
-    const me = w.players.find(p => p.human)!
+    const uiState = { locked: false, feed: [] as Feed[] }
 
     // ---------- renderer / scene ----------
     const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -303,7 +364,7 @@ const StormRoyale = () => {
       const n = me.weapons.length
       I.slot = (me.slot + (e.deltaY > 0 ? 1 : -1) + n) % n
     }
-    const plc = () => { const on = document.pointerLockElement === dom; I.locked = on; setLocked(on); if (!on) I.fire = false }
+    const plc = () => { const on = document.pointerLockElement === dom; I.locked = on; uiState.locked = on; if (!on) I.fire = false }
     window.addEventListener('keydown', kd)
     window.addEventListener('keyup', ku)
     document.addEventListener('mousemove', mm)
@@ -335,8 +396,8 @@ const StormRoyale = () => {
     }
 
     // ---------- minimap ----------
-    const mini = miniRef.current
     const drawMini = () => {
+      const mini = wrap.querySelector<HTMLCanvasElement>('canvas.st-mini')
       if (!mini) return
       const g = mini.getContext('2d')!
       const S = mini.width, k = S / ((MAP_R + 14) * 2)
@@ -362,6 +423,7 @@ const StormRoyale = () => {
     let raf = 0
     let prev = performance.now()
     let hudAt = 0
+    const uiTick = 100
 
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame)
@@ -387,12 +449,13 @@ const StormRoyale = () => {
         aim = [d.x, d.y, d.z]
       }
 
-      step(w, dt, {
-        mx, mz, yaw: v.yaw, pitch: v.pitch, aim,
+      const sent = api.send({
+        mx, mz, yaw: v.yaw, pitch: v.pitch, ...(aim ? { aim } : {}),
         fire: I.fire && I.locked, jump: I.jump, sprint: I.keys.has('ShiftLeft') || I.keys.has('ShiftRight'),
-        build: I.build, slot: I.slot,
+        build: I.build, ...(I.slot !== undefined ? { slot: I.slot } : {}),
       })
-      I.jump = false; I.build = false; I.slot = undefined
+      if (sent) { I.jump = false; I.build = false; I.slot = undefined }   // one-shot actions stay pending until they really went out
+      easeToTargets(w.players, dt)
 
       for (const e of w.events) onEvent(e)
       w.events.length = 0
@@ -481,25 +544,18 @@ const StormRoyale = () => {
       renderer.render(scene, camera)
       drawMini()
 
-      if (w.over) {
-        cancelAnimationFrame(raf)
-        setHud(null)
-        finish(w)
-        return
-      }
-
-      if (now - hudAt > 100) {
+      if (now - hudAt > uiTick) {
         hudAt = now
         const dc = Math.hypot(me.x, me.z)
-        setHud({
+        const cut = Date.now() - 6000
+        while (feedLog.length && feedLog[0].at < cut) feedLog.shift()
+        api.ui({
           t: w.t, alive: w.players.filter(p => p.alive).length, kills: me.kills, hp: me.hp, shield: me.shield, mats: Math.floor(me.mats),
           weapons: [...me.weapons], slot: me.slot, me: me.alive,
           stormIn: Math.max(0, 8 - w.t), inStorm: w.t > 8 && dc > R,
           hitFlash: Date.now() - hitmark.current < 160, flash: Date.now() - flash.current < 220,
-        })
-        const cut = Date.now() - 6000
-        while (feedLog.length && feedLog[0].at < cut) feedLog.shift()
-        setFeed([...feedLog].slice(-5))
+          locked: uiState.locked, feed: [...feedLog].slice(-5),
+        } satisfies StormUi)
       }
     }
     raf = requestAnimationFrame(frame)
@@ -524,124 +580,9 @@ const StormRoyale = () => {
       renderer.dispose()
       dom.remove()
     }
-  }, [phase, finish])
-
-  const grab = () => {
-    const dom = wrapRef.current?.querySelector('canvas.sl-canvas') as HTMLCanvasElement | null
-    dom?.requestPointerLock?.()
-  }
-
-  const timeLeft = hud ? Math.max(0, Math.ceil(ROUND_SEC - hud.t)) : ROUND_SEC
-  const stormR = hud ? stormRadius(hud.t) : 0
-  const feedNow = feed
-
-  return (
-    <div className="sl">
-      <div className="sl-top">
-        <div className="dc-balance">
-          <span>Demo balance</span>
-          <b>{balance.toFixed(2)}</b>
-        </div>
-        <button className="dc-reset" onClick={reset} title="Reset demo balance">
-          <RotateCcw size={14} /> Reset
-        </button>
-      </div>
-
-      {phase === 'lobby' && (
-        <div className="sl-lobby">
-          <h2>Storm Royale</h2>
-          <p>Third-person battle royale. Loot weapons, build walls for cover, and outlast 9 bots while the storm closes in. Last player standing takes the pool.</p>
-          <p><b>WASD</b> move · <b>Mouse</b> aim · <b>Click</b> shoot · <b>Space</b> jump · <b>Shift</b> run · <b>F</b> build a wall · <b>1–4</b> / wheel weapons. Desktop only.</p>
-          <div className="sl-lobby-grid">
-            <div>
-              <label className="dc-label">Buy-in</label>
-              <div className="dc-bet">
-                <input type="number" min="0" step="0.01" value={bet} onChange={e => setBet(e.target.value)} />
-                <button onClick={() => setBet(b => String(round2(Math.max(0.01, (parseFloat(b) || 0.02) / 2))))}>½</button>
-                <button onClick={() => setBet(b => String(round2((parseFloat(b) || 0) * 2)))}>2×</button>
-              </div>
-            </div>
-            <div className="dc-field"><span>Players</span><b>You + 9 bots</b></div>
-            <div className="dc-field"><span>Prize pool</span><b>{pool.toFixed(2)}</b></div>
-          </div>
-          <button className="dc-roll" onClick={start}>Drop in</button>
-          {error && <p className="dc-error">{error}</p>}
-        </div>
-      )}
-
-      {phase !== 'lobby' && (
-        <div className="sl-stage st-stage" ref={wrapRef}>
-          {hud && (
-            <>
-              <div className="sl-hud sl-hud--tl">
-                <div className="sl-chip"><span>Time</span><b>{timeLeft}s</b></div>
-                <div className="sl-chip"><span>Alive</span><b>{hud.alive}/{PLAYERS}</b></div>
-                <div className="sl-chip"><span>Kills</span><b>{hud.kills}</b></div>
-                <div className="sl-chip"><span>Pool</span><b>{pool.toFixed(2)}</b></div>
-              </div>
-
-              <div className={`st-storm${hud.inStorm ? ' st-storm--in' : ''}`}>
-                {hud.inStorm ? 'YOU ARE IN THE STORM' : hud.stormIn > 0 ? `Storm forms in ${Math.ceil(hud.stormIn)}s` : `Safe zone ${Math.round(stormR)}m`}
-              </div>
-
-              <div className="st-feed">
-                {feedNow.map(f => <div key={f.id}>{f.text}</div>)}
-              </div>
-
-              <canvas ref={miniRef} className="st-mini" width={150} height={150} />
-
-              <div className="st-bars">
-                <div className="st-bar st-bar--shield"><i style={{ width: `${hud.shield}%` }} /></div>
-                <div className="st-bar st-bar--hp"><i style={{ width: `${hud.hp}%` }} /></div>
-                <small>{Math.ceil(hud.hp)} HP · {Math.ceil(hud.shield)} shield · {hud.mats} wood</small>
-              </div>
-
-              <div className="st-slots">
-                {hud.weapons.map((k, i) => (
-                  <div key={k} className={`st-slot${i === hud.slot ? ' st-slot--on' : ''}`} style={{ borderColor: i === hud.slot ? `#${WEAPON_COLOR[k].toString(16).padStart(6, '0')}` : undefined }}>
-                    <b>{i + 1}</b>{WEAPONS[k].name}
-                  </div>
-                ))}
-              </div>
-
-              {hud.me && <div className="st-cross" />}
-              {hud.hitFlash && <div className="st-hit" />}
-              {hud.flash && <div className="st-flash" />}
-              {hud.inStorm && <div className="st-flash st-flash--storm" />}
-
-              {hud.me && !locked && phase === 'playing' && (
-                <button className="st-lock" onClick={grab}>
-                  <b>Click to play</b>
-                  <span>WASD move · Mouse aim & shoot · Space jump · Shift run · F build wall · 1–4 weapons</span>
-                </button>
-              )}
-              {!hud.me && (
-                <div className="sl-hud sl-hud--bottom">
-                  <small>You were eliminated</small>
-                  <button className="gp-btn" onClick={skip}><FastForward size={15} /> Skip to result</button>
-                </div>
-              )}
-            </>
-          )}
-
-          {phase === 'done' && result && (
-            <div className="sl-result">
-              <div className={`sl-result-card${result.payout > 0 ? ' sl-result-card--win' : ''}`}>
-                {result.payout > 0 ? <Trophy size={34} /> : <Skull size={34} />}
-                <h2>{result.payout > 0 ? `Victory! +${result.payout.toFixed(2)}` : `Placed #${result.place}`}</h2>
-                <p>{result.payout > 0 ? 'Last one standing.' : `You lost ${result.stake.toFixed(2)}.`} Eliminations: {result.kills}</p>
-                <div className="sl-result-btns">
-                  <button className="dc-roll" onClick={start}>Play again</button>
-                  <button className="gp-btn" onClick={() => setPhase('lobby')}>Change bet</button>
-                </div>
-                {error && <p className="dc-error">{error}</p>}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
+  },
 }
+
+const StormRoyale = () => <NetShell adapter={adapter} />
 
 export default StormRoyale

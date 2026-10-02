@@ -1,0 +1,68 @@
+# Production stack: Postgres + game server + site/HTTPS proxy.
+#   cp deploy/.env.example deploy/.env   (fill it in)
+#   docker compose -f docker-compose.prod.yml --env-file deploy/.env up -d --build
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: casino
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: casino
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U casino -d casino"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      target: server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "8787"
+      TRUST_PROXY: "1"
+      DATABASE_URL: postgres://casino:${POSTGRES_PASSWORD}@db:5432/casino
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (at least 32 random characters)}
+      CLIENT_ORIGIN: https://${DOMAIN:?set DOMAIN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: https://${DOMAIN}/api/auth/oauth/google/callback
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      DISCORD_REDIRECT_URI: https://${DOMAIN}/api/auth/oauth/discord/callback
+      ODDS_API_KEY: ${ODDS_API_KEY:-}
+      DEMO_LIVE_WINS: ${DEMO_LIVE_WINS:-false}
+    volumes:
+      - server-data:/app/server/data
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        SITE_URL: https://${DOMAIN}
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  server-data:
+  caddy-data:
+  caddy-config:

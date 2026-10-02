@@ -1,5 +1,10 @@
-import RoyaleShell, { type Adapter } from '../royale/RoyaleShell'
-import { createWorld, step, radiusOf, WORLD, type World, type Thing } from './engine'
+import NetShell, { type NetAdapter } from '../net/NetShell'
+import { setTarget, easeToTargets } from '../net/smooth'
+import { radiusOf, WORLD, type World, type Thing, type Hole as HoleEntity } from './engine'
+import { KINDS, type HoleSnap } from './net'
+
+// Things are delta-encoded by id, so keep an id -> thing map beside each mirror world.
+const thingIds = new WeakMap<World, Map<number, Thing>>()
 
 const camera = (w: World, W: number, H: number) => {
   const me = w.holes.find(h => h.human)!
@@ -45,19 +50,35 @@ const drawThing = (ctx: CanvasRenderingContext2D, t: Thing, x: number, y: number
   }
 }
 
-const adapter: Adapter<World> = {
+const adapter: NetAdapter<World, HoleSnap> = {
+  key: 'hole',
   title: 'Hole Royale',
   blurb: 'Swallow coins, trees, cars, houses and towers to grow. Bigger holes swallow smaller holes whole, and swallowed holes are out. Biggest hole after 1 minute (or the last one left) takes the pool.',
-  create: createWorld,
-  step,
-  over: w => w.over,
-  time: w => w.t,
-  skip: w => { while (!w.over) step(w, 0.05) },
-
-  result: w => {
-    const me = w.holes.find(h => h.human)!
-    return { won: me.id === w.winner, place: me.place, kills: me.kills }
+  create: (you, seats) => {
+    const holes: HoleEntity[] = seats.map(s => ({
+      id: s.id, name: s.name, hue: s.hue, human: s.id === you, auto: false,
+      x: 0, y: 0, area: 22 * 22, want: 0, alive: true, kills: 0, place: 0, aggr: 0, think: 0,
+    }))
+    const w: World = { t: 0, holes, things: [], nextThing: 0, sucked: [], respawn: 0, over: false, winner: -1 }
+    thingIds.set(w, new Map())
+    return w
   },
+
+  apply: (w, snap) => {
+    w.t = snap.t
+    for (const s of snap.holes) {
+      const h = w.holes[s.id]
+      setTarget(h, s.x, s.y)
+      h.area = s.area; h.alive = s.al; h.kills = s.k; h.place = s.p
+    }
+    const ids = thingIds.get(w)!
+    for (const id of snap.thingsDel) ids.delete(id)
+    for (const [id, x, y, r, kind, hue] of snap.thingsAdd) ids.set(id, { id, x, y, r, kind: KINDS[kind], hue })
+    w.things = [...ids.values()]
+    w.sucked = snap.sucked.map(s => ({ id: s.id, x: s.x, y: s.y, r: s.r, kind: KINDS[s.kind], hue: s.hue, t: s.t, tx: s.x, ty: s.y, hole: s.hole }))
+  },
+
+  smooth: (w, dt) => easeToTargets(w.holes, dt),
 
   hud: w => {
     const me = w.holes.find(h => h.human)!
@@ -76,7 +97,7 @@ const adapter: Adapter<World> = {
     }
   },
 
-  aim: (_w, px, py, W, H) => Math.atan2(py - H / 2, px - W / 2),
+  aim: (_w, px, py, W, H) => ({ want: Math.atan2(py - H / 2, px - W / 2) }),
 
   draw: (ctx, w, W, H, c) => {
     const { cx, cy, zoom } = camera(w, W, H)
@@ -136,6 +157,6 @@ const adapter: Adapter<World> = {
   },
 }
 
-const Hole = () => <RoyaleShell adapter={adapter} />
+const Hole = () => <NetShell adapter={adapter} />
 
 export default Hole

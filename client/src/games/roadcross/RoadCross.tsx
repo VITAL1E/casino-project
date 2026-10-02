@@ -1,24 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { RotateCcw } from 'lucide-react'
-import { useDemoBalance, round2 } from '../../hooks/useDemoBalance'
-import { makeLane, updateLane, hitCar, laneHits, hopX, overRoad, ROAD_W, STRIP_W, STEP_W, HOP_SEC, type Lane, type Car } from './traffic'
+import { useSolo } from '../net/useSolo'
+import { hopX, ROAD_W, STRIP_W, STEP_W, HOP_SEC, type Lane, type Car } from './traffic'
+import { DIFFS, MAX_STEPS, HERO_Y, LANE_LEN, multAt, round2, type DiffKey } from './engine'
+import type { RoadSnap } from './net'
 import { makeCar, makePenguin, makeSheep, emojiSprite, textTexture, disposeTextures, type CarModel } from './models'
 
-const RTP = 0.96
-const MAX_STEPS = 20
 const START_X = 90
-const LANE_LEN = 760
-const HERO_Y = LANE_LEN * 0.6   // where the hero stands along the lanes
-
-// rate = cars spawned per second on each road; tuned by simulation so the real
-// survival odds of a hop land close to the nominal chance p
-const DIFFS = [
-  { key: 'easy',    label: 'Easy',    p: 0.85, rate: 0.36 },
-  { key: 'medium',  label: 'Medium',  p: 0.75, rate: 0.69 },
-  { key: 'hard',    label: 'Hard',    p: 0.65, rate: 1.17 },
-  { key: 'extreme', label: 'Extreme', p: 0.5,  rate: 2.18},
-] as const
+const stripX = (k: number) => START_X + k * STEP_W
 
 const HEROES = [
   { emoji: '🐸', name: 'Frog' },
@@ -32,8 +22,6 @@ const HEROES = [
 
 // heroes drawn as real 3D models; everything else is an upright emoji
 const HERO_MODELS: Record<string, () => ReturnType<typeof makePenguin>> = { '🐧': makePenguin, '🐑': makeSheep }
-
-const multAt = (n: number, p: number) => (n === 0 ? 1 : round2(RTP / Math.pow(p, n)))
 
 type Status = 'idle' | 'ready' | 'hopping' | 'dead' | 'cashed'
 // what is left of the hero after a hit: a tumbling body that cars can keep knocking around
@@ -64,70 +52,80 @@ type Game = {
 const cssVar = (el: Element, name: string) => getComputedStyle(el).getPropertyValue(name).trim()
 
 const RoadCross = () => {
-  const { balance, setBalance, reset } = useDemoBalance()
-
   const [bet, setBet] = useState('1')
-  const [diff, setDiff] = useState<(typeof DIFFS)[number]['key']>('medium')
+  const [diff, setDiff] = useState<DiffKey>('medium')
   const [hero, setHero] = useState(HEROES[0].emoji)
-  const [status, setStatus] = useState<Status>('idle')
+  const [snapStatus, setSnapStatus] = useState<Status>('idle')
   const [step, setStep] = useState(0)
-  const [error, setError] = useState('')
-  const [last, setLast] = useState<{ win: boolean; amount: number } | null>(null)
 
   const cfg = DIFFS.find(d => d.key === diff)!
   const amount = parseFloat(bet)
-  const mult = multAt(step, cfg.p)
-  const nextMult = multAt(step + 1, cfg.p)
-  const payout = round2((amount > 0 ? amount : 0) * mult)
 
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const emptyLanes = () => Array.from({ length: MAX_STEPS }, (): Lane => ({ cars: [], timer: 0, rate: 0 }))
+  // Mirror of the server's state: the server decides everything (traffic, hits, payout); this is only what we draw.
   const game = useRef<Game>({
-    status: 'idle', step: 0, p: cfg.p, rate: cfg.rate, hero, lanes: [], hopT: 0, queued: false,
+    status: 'idle', step: 0, p: cfg.p, rate: cfg.rate, hero, lanes: emptyLanes(), hopT: 0, queued: false,
     camX: 0, t: 0, endAt: 0, deadU: 0, body: null,
   })
-  const stake = useRef(0)
+  const hitRef = useRef<RoadSnap['hit']>(null)
+  const carIds = useRef(new Map<number, Car>())   // keeps one Car object per server car id so 3D models persist
 
-  const busy = status === 'ready' || status === 'hopping'
+  const onSnap = useCallback((s: RoadSnap) => {
+    const g = game.current
+    g.status = s.status
+    g.step = s.step
+    g.hopT = s.hopT
+
+    const byId = carIds.current
+    const seen = new Set<number>()
+    for (const l of g.lanes) l.cars = []
+    for (const [k, id, y, ve, len, hue] of s.cars) {
+      let c = byId.get(id)
+      if (!c) { c = { id, y, v: ve, ve, len, hue }; byId.set(id, c) }
+      else { c.y = y; c.ve = ve; c.v = ve }
+      g.lanes[k].cars.push(c)
+      seen.add(id)
+    }
+    for (const id of [...byId.keys()]) if (!seen.has(id)) byId.delete(id)
+
+    hitRef.current = s.hit   // the server says where the hero was hit; the tumble itself is just visuals (see the render loop)
+    if (s.status === 'dead' && g.endAt === 0 && s.hit) { g.deadU = s.hit.u; g.endAt = g.t }
+    if (s.status === 'cashed' && g.endAt === 0) g.endAt = g.t
+    setSnapStatus(s.status)
+    setStep(s.step)
+  }, [])
+
+  const solo = useSolo<RoadSnap>('roadcross', onSnap)
+  const { balance, phase, error, result, bet: stake } = solo
+
+  const status: Status = phase === 'playing' ? snapStatus : phase === 'done' ? (result?.result === 'cash' ? 'cashed' : 'dead') : 'idle'
+  const busy = phase === 'playing'
+  const mult = multAt(step, cfg.p)
+  const nextMult = multAt(step + 1, cfg.p)
+  const payout = round2((busy ? stake : amount > 0 ? amount : 0) * mult)
+
+  const last = phase === 'done' && result
+    ? { win: result.result === 'cash', amount: result.result === 'cash' ? result.payout : result.bet }
+    : null
 
   const play = () => {
-    if (!(amount > 0)) return setError('Enter a bet amount')
-    if (amount > balance) return setError('Insufficient balance')
-    setError('')
-    setLast(null)
-    stake.current = amount
-    setBalance(b => b - amount)
+    if (!(amount > 0)) return solo.setError('Enter a bet amount')
+    if (balance !== null && amount > balance) return solo.setError('Insufficient balance')
+    carIds.current.clear()
+    hitRef.current = null
     Object.assign(game.current, {
-      status: 'ready', step: 0, p: cfg.p, rate: cfg.rate, hero,
-      lanes: Array.from({ length: MAX_STEPS }, () => makeLane(cfg.rate, LANE_LEN)),
+      status: 'ready', step: 0, p: cfg.p, rate: cfg.rate, hero, lanes: emptyLanes(),
       hopT: 0, queued: false, camX: 0, endAt: 0, deadU: 0, body: null,
     })
     setStep(0)
-    setStatus('ready')
+    solo.start(amount, { diff })
   }
 
-  // the jump happens right now: no waiting for a gap, cars decide your fate
-  const go = useCallback(() => {
-    const g = game.current
-    if (g.status === 'ready') {
-      g.status = 'hopping'
-      g.hopT = 0
-      setStatus('hopping')
-    } else if (g.status === 'hopping') {
-      g.queued = true
-    }
-  }, [])
-
-  const cashOut = useCallback(() => {
-    const g = game.current
-    if (g.status !== 'ready' || g.step < 1) return
-    const win = round2(stake.current * multAt(g.step, g.p))
-    g.status = 'cashed'
-    g.endAt = g.t
-    setBalance(b => b + win)
-    setLast({ win: true, amount: win })
-    setStatus('cashed')
-  }, [setBalance])
+  // the jump happens right now on the server: no waiting for a gap, cars decide your fate
+  const go = useCallback(() => solo.act('go'), [solo])
+  const cashOut = useCallback(() => solo.act('cash'), [solo])
 
   // keyboard: enter = cash out (jumping is mouse-only)
   useEffect(() => {
@@ -143,7 +141,7 @@ const RoadCross = () => {
     const canvas = canvasRef.current!
     const wrap = wrapRef.current!
     let raf = 0
-    let prev = performance.now()
+    let prev = 0
 
     // ---------- scene ----------
     const bgHex = cssVar(canvas, '--bg')
@@ -192,7 +190,6 @@ const RoadCross = () => {
     dashTex.repeat.set(1, SPAN / 40)
     const dashMat = new THREE.MeshBasicMaterial({ map: dashTex, transparent: true, opacity: 0.55 })
 
-    const stripX = (k: number) => START_X + k * STEP_W
     const roadX = (k: number) => stripX(k) + STRIP_W / 2 + ROAD_W / 2
 
     const checker = document.createElement('canvas')
@@ -341,58 +338,31 @@ const RoadCross = () => {
       if (b.z > 480) b.gone = true      // knocked out of sight
     }
 
+    // between snapshots keep things moving; the server's snapshots keep correcting this
     const tick = (g: Game, h: number) => {
-      g.lanes.forEach(l => updateLane(l, h, LANE_LEN))
+      for (const l of g.lanes) for (const c of l.cars) c.y += c.ve * h
       if (g.body && !g.body.gone) stepBody(g, h)
-      if (g.status !== 'hopping') return
-      g.hopT += h
-      const u = Math.min(1, g.hopT / HOP_SEC)
-
-      if (overRoad(u) && laneHits(g.lanes[g.step], HERO_Y)) {
-        const ve = hitCar(g.lanes[g.step], HERO_Y)?.ve ?? 300
-        // launched along the car's direction, harder the faster it was going
-        g.body = {
-          x: stripX(g.step) + hopX(u), y: Math.sin(u * Math.PI) * 34, z: 0,
-          vx: (Math.random() - 0.5) * 50, vy: 70 + ve * 0.4, vz: ve * 1.15 + 30,
-          rx: 0, ry: 0, rz: 0,
-          sx: (ve / 30) * (0.7 + Math.random() * 0.6), sy: (Math.random() - 0.5) * ve / 25, sz: (Math.random() - 0.5) * ve / 18,
-          rest: false, gone: false,
-        }
-        g.status = 'dead'
-        g.deadU = u
-        g.endAt = g.t
-        setLast({ win: false, amount: stake.current })
-        setStatus('dead')
-        return
-      }
-
-      if (u >= 1) {
-        g.step++
-        setStep(g.step)
-        g.hopT = 0
-        if (g.step >= MAX_STEPS) {
-          const win = round2(stake.current * multAt(g.step, g.p))
-          g.status = 'cashed'
-          g.endAt = g.t
-          setBalance(b => b + win)
-          setLast({ win: true, amount: win })
-          setStatus('cashed')
-        } else if (g.queued) {
-          g.queued = false          // chained jump starts on the same frame
-        } else {
-          g.status = 'ready'
-          setStatus('ready')
-        }
-      }
+      if (g.status === 'hopping') g.hopT = Math.min(HOP_SEC, g.hopT + h)
     }
 
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame)
+      if (!prev) prev = now
       const dt = Math.min((now - prev) / 1000, 0.05)
       prev = now
       const g = game.current
       g.t += dt
 
+      if (g.status === 'dead' && !g.body && hitRef.current) {
+        const { u: hu, ve } = hitRef.current
+        g.body = {
+          x: stripX(g.step) + hopX(hu), y: Math.sin(hu * Math.PI) * 34, z: 0,
+          vx: (Math.random() - 0.5) * 50, vy: 70 + ve * 0.4, vz: ve * 1.15 + 30,
+          rx: 0, ry: 0, rz: 0,
+          sx: (ve / 30) * (0.7 + Math.random() * 0.6), sy: (Math.random() - 0.5) * ve / 25, sz: (Math.random() - 0.5) * ve / 18,
+          rest: false, gone: false,
+        }
+      }
       const n = Math.ceil(dt / 0.008)
       for (let i = 0; i < n; i++) tick(g, dt / n)
 
@@ -505,16 +475,16 @@ const RoadCross = () => {
       dashTex.dispose(); checkerTex.dispose()
       renderer.dispose()
     }
-  }, [setBalance])
+  }, [])
 
   return (
     <div className="dc">
       <div className="dc-top">
         <div className="dc-balance">
-          <span>Demo balance</span>
-          <b>{balance.toFixed(2)}</b>
+          <span>Balance</span>
+          <b>{balance === null ? '—' : balance.toFixed(2)}</b>
         </div>
-        <button className="dc-reset" onClick={reset} title="Reset demo balance">
+        <button className="dc-reset" onClick={solo.reset} title="Reset balance">
           <RotateCcw size={14} /> Reset
         </button>
       </div>
@@ -523,7 +493,7 @@ const RoadCross = () => {
         <div className="dc-controls">
           <label className="dc-label">Bet amount</label>
           <div className="dc-bet">
-            <input type="number" min="0" step="0.01" value={bet} disabled={busy} onChange={e => setBet(e.target.value)} />
+            <input type="number" aria-label="Bet amount" min="0" step="0.01" value={bet} disabled={busy} onChange={e => setBet(e.target.value)} />
             <button disabled={busy} onClick={() => setBet(b => String(round2(Math.max(0.01, (parseFloat(b) || 0.02) / 2))))}>½</button>
             <button disabled={busy} onClick={() => setBet(b => String(round2((parseFloat(b) || 0) * 2)))}>2×</button>
           </div>
@@ -555,7 +525,7 @@ const RoadCross = () => {
               </button>
             </>
           ) : (
-            <button className="dc-roll" onClick={play}>{status === 'idle' ? 'Play' : 'Play again'}</button>
+            <button className="dc-roll" onClick={play} disabled={phase === 'connecting' || (phase === 'offline' && solo.offline !== 'login')}>{status === 'idle' ? 'Play' : 'Play again'}</button>
           )}
 
           {last && (
@@ -564,7 +534,11 @@ const RoadCross = () => {
             </p>
           )}
           {error && <p className="dc-error">{error}</p>}
-          <small className="rc-hint">Click Jump to hop · Enter to cash out</small>
+          {phase === 'offline' && solo.offline === 'server' && <p className="dc-error">Cannot reach the game server. Make sure it is running (npm run server).</p>}
+          {phase === 'offline' && solo.offline === 'lost' && (
+            <p className="dc-error">Connection lost. <button className="gp-link" onClick={solo.reconnect}>Reconnect</button></p>
+          )}
+          <small className="rc-hint">Click Jump to hop · Enter to cash out · results are decided on the server</small>
         </div>
 
         <div className="dc-board rc-board" ref={wrapRef}>

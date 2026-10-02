@@ -16,6 +16,7 @@ export type AuthCtx = {
   busyProvider: string | null
   signInWithOAuth: (provider: OAuthProviderId) => void
   signInWithWallet: (id: string) => void
+  guestLogin: () => Promise<boolean>   // TEMPORARY (testing): true when a guest account was created
 }
 
 const noop = () => {}
@@ -28,6 +29,7 @@ export const AuthContext = createContext<AuthCtx>({
   busyProvider: null,
   signInWithOAuth: noop,
   signInWithWallet: noop,
+  guestLogin: async () => false,
 })
 
 export const useAuth = () => useContext(AuthContext)
