@@ -6,19 +6,20 @@ import { GAMES, type Game, type GameGroup } from '../data/casino'
 export const TAB_ICONS = { arcade: Gamepad2, classics: Dices, slots: Star, live: Tv2, shows: Layers, new: Sparkles }
 
 export const GameTile = ({ game }: { game: Game }) => {
+  const hasClassicArt = game.group === 'classics' && Boolean(game.img)
   const titleInArt = !game.img || game.group === 'arcade' || game.group === 'classics'
   const longWord = game.title.split(' ').some(w => w.length > 7)   // one long word cannot wrap, so it gets a smaller size
   return (
-  <Link to={`/casino/games/${game.id}`} className="cg-tile">
+  <Link to={`/casino/games/${game.id}`} className="cg-tile" aria-label={game.title}>
     <div
-      className={`cg-art${game.img && titleInArt ? ' cg-art--shade' : ''}`}
+      className={`cg-art${hasClassicArt ? ' cg-art--classic' : game.img && titleInArt ? ' cg-art--shade' : ''}`}
       style={
         game.img
           ? { backgroundImage: `url(${game.img})` }
           : { background: `linear-gradient(160deg, hsl(${game.hue} 85% 58%), hsl(${(game.hue ?? 0) + 40} 80% 28%))` }
       }
     >
-      {titleInArt && <span className={`cg-art-title${longWord ? ' cg-art-title--long' : ''}`}>{game.title}</span>}
+      {titleInArt && !hasClassicArt && <span className={`cg-art-title${longWord ? ' cg-art-title--long' : ''}`}>{game.title}</span>}
       {game.mode
         ? <span className={`cg-mode cg-mode--${game.mode}`}>{game.mode === 'multi' ? 'Multiplayer' : 'Single-player'}</span>
         : <span className="cg-provider">{game.provider}</span>}

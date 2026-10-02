@@ -1435,6 +1435,8 @@ a.sidebar-item, a.logo { text-decoration: none; }
   transition: transform 0.15s;
 }
 
+.cg-art--classic { aspect-ratio: 1; }
+
 .cg-tile:hover .cg-art { transform: translateY(-3px); }
 
 .cg-art--shade::before {
