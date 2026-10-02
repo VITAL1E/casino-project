@@ -142,7 +142,7 @@ const LayoutInner = ({ children }: { children: ReactNode }) => {
 
       <nav className="top-nav">
         <Link to="/" className="logo">
-          <span className="logo-glitch" data-text="STACKX">STACKX</span>
+          <span className="logo-glitch" data-text="stackxx">stackxx</span>
         </Link>
 
         <div className="nav-right">
