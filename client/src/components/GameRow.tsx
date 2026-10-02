@@ -12,7 +12,7 @@ export const GameTile = ({ game }: { game: Game }) => {
   return (
   <Link to={`/casino/games/${game.id}`} className="cg-tile" aria-label={game.title}>
     <div
-      className={`cg-art${hasClassicArt ? ' cg-art--classic' : game.img && titleInArt ? ' cg-art--shade' : ''}`}
+      className={`cg-art${game.img && titleInArt && !hasClassicArt ? ' cg-art--shade' : ''}`}
       style={
         game.img
           ? { backgroundImage: `url(${game.img})` }
