@@ -7,7 +7,7 @@ import LiveWinsTable from '../components/LiveWinsTable'
 import { GameRow, Row } from '../components/GameRow'
 import { GROUPS } from '../data/casino'
 import site from '../data/site.json'
-import { SPORTS, sportArt, hasSportFile } from '../data/sports'
+import { SPORTS, sportArt } from '../data/sports'
 
 const NO_BONUS_BANNER = (
   <div className="no-bonus-banner">
@@ -44,7 +44,7 @@ const Home = () => {
           {SPORTS.map(({ key, label }) => (
             <button key={key} className="sport-tile" onClick={() => navigate(`/sports?sport=${key}`)}>
               <div className="sport-tile-art" style={{ background: sportArt(key), backgroundSize: 'cover', backgroundPosition: 'center' }} />
-              {!hasSportFile(key) && <span className="sport-tile-name">{label}</span>}
+              <span className="sport-tile-name">{label}</span>
             </button>
           ))}
         </Row>

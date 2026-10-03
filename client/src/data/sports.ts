@@ -33,9 +33,6 @@ const PLACEHOLDER: Record<SportKey, { img: string; hue: number }> = {
   'table-tennis':      { img: u('photo-1609710228159-0fa9bd7c0827'), hue: 320 },
 }
 
-export const hasSportFile = (sport: SportKey) =>
-  Object.keys(sportFiles).some(p => p.split('/').pop()!.replace(/.w+$/, '') === sport)
-
 // CSS background value: the image on top, a sport-tinted gradient underneath in case it fails to load
 export const sportArt = (sport: SportKey) => {
   const file = Object.entries(sportFiles).find(([p]) => p.split('/').pop()!.replace(/\.\w+$/, '') === sport)?.[1]
