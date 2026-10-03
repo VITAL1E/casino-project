@@ -8,6 +8,7 @@ export type Game = {
   mode?: 'multi' | 'single'   // arcade games only
   hue?: number
   img?: string
+  coverTitle?: string[]
 }
 
 const u = (id: string) => `https://images.unsplash.com/${id}?w=400&q=80`
@@ -39,7 +40,7 @@ const RAW_GAMES: Game[] = [
 
   { id: 's1',  title: 'Wanted Dead or Wild', provider: 'Hacksaw',     group: 'slots', img: u('photo-1587837073080-448bc6a2329b') },
   { id: 's2',  title: 'Sweet Bonanza',       provider: 'Pragmatic',   group: 'slots', img: u('photo-1604881991720-f91add269bed') },
-  { id: 's3',  title: 'Gates of Olympus',    provider: 'Pragmatic',   group: 'slots', img: u('photo-1558618666-fcd25c85cd64') },
+  { id: 's3',  title: 'Gates of Olympus', coverTitle: ['Gates of', 'Olympus'], provider: 'Pragmatic',   group: 'slots', img: u('photo-1558618666-fcd25c85cd64') },
   { id: 's4',  title: 'Book of Dead',        provider: "Play'n GO",   group: 'slots', img: u('photo-1601662528567-526cd06f6582') },
   { id: 's5',  title: 'Starburst',           provider: 'NetEnt',      group: 'slots', img: u('photo-1446776858070-70c3d5ed6758') },
   { id: 's6',  title: 'Mega Moolah',         provider: 'Microgaming', group: 'slots', img: u('photo-1521920592574-49e0b121e992') },

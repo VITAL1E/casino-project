@@ -20,6 +20,11 @@ export const GameTile = ({ game }: { game: Game }) => {
       }
     >
       {titleInArt && !hasClassicArt && <span className={`cg-art-title${longWord ? ' cg-art-title--long' : ''}`}>{game.title}</span>}
+      {game.coverTitle && (
+        <span className="cg-cover-title">
+          {game.coverTitle.map(line => <span key={line}>{line}</span>)}
+        </span>
+      )}
       {game.mode
         ? <span className={`cg-mode cg-mode--${game.mode}`}>{game.mode === 'multi' ? 'Multiplayer' : 'Single-player'}</span>
         : <span className="cg-provider">{game.provider}</span>}
