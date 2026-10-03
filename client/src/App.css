@@ -1456,6 +1456,20 @@ a.sidebar-item, a.logo { text-decoration: none; }
 }
 .cg-art-title--long { font-size: 17px; }
 
+.cg-cover-title {
+  position: absolute;
+  left: 6%; right: 6%; bottom: 15%;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--yellow);
+  font: 900 25px/0.95 Georgia, serif;
+  text-shadow: 0 2px 0 var(--surface), 0 3px 7px var(--bg);
+  pointer-events: none;
+}
+
+.cg-cover-title span { display: block; }
+.cg-cover-title span:first-child { font-size: 0.64em; line-height: 1.2; }
+
 .cg-provider {
   position: absolute;
   left: 0; right: 0; bottom: 8px;
