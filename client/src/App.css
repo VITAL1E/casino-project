@@ -20,6 +20,7 @@
   --bg:            #0c1220;
   --bottom-h:      0px;
   --sidebar-w:     60px;
+  --auth-gray:      #949494;
   --brand-discord:  #5865f2;
   --brand-phantom:  #ab9ff2;
   --brand-metamask: #f6851b;
@@ -845,13 +846,14 @@ body {
 }
 
 .auth-social-btn {
+  color: var(--auth-gray);
   display: flex;
   align-items: center;
   justify-content: center;
   width: 46px;
   height: 46px;
   background: var(--surface-2);
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, transform 0.12s;
@@ -859,7 +861,7 @@ body {
 
 .auth-social-btn:hover {
   background: var(--surface-3);
-  border-color: var(--accent);
+  border-color: currentColor;
   transform: translateY(-2px);
 }
 .auth-social-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
@@ -867,8 +869,8 @@ body {
 .auth-social-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
+  border: 2px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
   border-radius: 50%;
   animation: auth-spin 0.7s linear infinite;
 }
