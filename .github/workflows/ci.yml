@@ -21,6 +21,11 @@ jobs:
         working-directory: client
       - run: npm run build
         working-directory: client
+      - run: npm run build
+        working-directory: client
+        env:
+          VITE_BASE: /casino-project/
+          SITE_URL: https://vital1e.github.io/casino-project
 
   server:
     runs-on: ubuntu-latest

@@ -56,5 +56,17 @@
 - Read App.css before editing it — it's one big file, sections are comment-labeled
 - Always read a file before editing to get exact strings (avoids "string not found")
 - When editing CSS, target the specific rule block by its comment header
-- Playwright MCP available for browser testing after session restart
 - `! <cmd>` runs shell commands in the Claude Code terminal session
+- Python is not installed; script edits with Node or sed
+
+# Deploy
+
+- Frontend deploys to GitHub Pages via `.github/workflows/pages.yml` on push to `main`; site lives at `/casino-project/`
+- Use `import.meta.env.BASE_URL` for paths; never hardcode absolute `/` asset or route paths
+- Backend is not hosted yet; API calls fail on Pages until `API_URL` repo variable is set
+- Git Bash rewrites `/foo/` env values into Windows paths; set `VITE_BASE` from PowerShell or CI
+
+# Git
+
+- Commit and push only when asked
+- Never commit `.env` files or secrets (repo is public)
